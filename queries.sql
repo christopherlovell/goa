@@ -19,7 +19,7 @@
 # * use 1-e9 stellar mass selection to subset for 10e10 stellar mass galaxies
 
 
-wget --http-user=******* --http-passwd=******* "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
+wget --http-user=***** --http-passwd=****** "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
 select
   zn.galaxyId as zn_galaxyId,
   zn.haloId as zn_haloId,
@@ -47,7 +47,7 @@ from
   from
     Henriques2015a..MRscPlanck1
   where
-    snapnum = 25
+    snapnum = 30
     and sfr > 1) zn
 
   left join
@@ -55,13 +55,13 @@ from
   (select
    prog.haloId as zn_haloId,
    z0_join.z0_haloId as z0_haloId,
-   z0_join.z0_m_crit200 as z0_m_crit200,
+   z0_join.z0_mcrit200 as z0_mcrit200,
    z0_join.z0_central_haloId as z0_centralId,
    z0_join.z0_central_mcrit200 as z0_central_mcrit200
    from
       MPAHaloTrees..MRscPlanck1 prog,
       (select
-         z0_all.m_crit200 as z0_m_crit200,
+         z0_all.m_crit200 as z0_mcrit200,
          z0_all.lastProgenitorId as z0_lastProgenitorId,
          z0_all.haloId as z0_haloId,
          z0_central.haloId as z0_central_haloId,
@@ -91,10 +91,10 @@ from
 
        where
         prog.haloId between z0_join.z0_haloId and z0_join.z0_lastprogenitorId
-        and prog.snapnum = 25
+        and prog.snapnum = 30
      ) z0
 
       on zn.haloId = z0.zn_haloId
-" -O henriques2015a_z3p10_sfr.csv
+" -O henriques2015a_z2p07_sfr.csv
 
 "
