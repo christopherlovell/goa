@@ -3,7 +3,9 @@ Calculate galaxy overdensity
 - can calculate for random regions, or for each galaxy. If random, set random flag to 'True'.
 """
 
-random = False
+random = True
+
+import sys
 
 import pandas as pd
 import numpy as np
@@ -15,10 +17,12 @@ from hightolowz import distance
 
 print "Reading galaxy data..."
 
-gals = pd.read_csv('data/planck1/henriques2015a_z3p95_mstar.csv', skiprows=101, skipfooter=1, engine='python')
+directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z2p07_mstar.csv'
+
+gals = pd.read_csv(directory, skiprows=104, skipfooter=1, engine='python')
 
 selection_str = 'mstar9'
-redshift_str = '3p95'
+redshift_str = '2p07'
 
 print "Filling in NaN values..."
 gals.ix[np.isnan(gals['z0_haloId']), 'z0_haloId'] = -1
@@ -60,6 +64,7 @@ for i,c in coods.groupby(np.arange(len(coods))//n):
 
     if i % 5 == 0:
         print round(float(c.shape[0] * (i+1)) / coods.shape[0] * 100, 2), '%'
+        sys.stdout.flush()
 
     # calculate distances
     dist = np.vstack(c.apply(lambda x: distance(x, gals[['zn_x','zn_y','zn_z']], dimensions), axis=1))
