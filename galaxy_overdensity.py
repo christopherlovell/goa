@@ -12,19 +12,24 @@ from scipy.spatial.distance import cdist
 
 from hightolowz import distance
 
+# https://github.com/patvarilly/periodic_kdtree
+from periodic_kdtree import PeriodicCKDTree
+
+n = 100
+selection_str = 'sfr'
+redshift_str = '2p07'
+directory = 'data/henriques2015a_z2p07_sfr.csv'
 
 print "Reading galaxy data..."
+print directory
 
-gals = pd.read_csv('data/planck1/henriques2015a_z3p95_mstar.csv', skiprows=101, skipfooter=1, engine='python')
+gals = pd.read_csv(directory, skiprows=104, skipfooter=1, engine='python')
 
-selection_str = 'mstar9'
-redshift_str = '3p95'
 
 print "Filling in NaN values..."
 gals.ix[np.isnan(gals['z0_haloId']), 'z0_haloId'] = -1
 gals.ix[np.isnan(gals['z0_centralId']), 'z0_centralId'] = -1
 gals.ix[np.isnan(gals['z0_central_mcrit200']), 'z0_central_mcrit200'] = 0
-
 
 L = 480.279
 
@@ -40,47 +45,57 @@ else:
 
 dimensions = np.array([L, L, L])
 
-r = [20, 15, 10, 5]
-r_str = ['20', '15', '10', '5']
+T = PeriodicCKDTree(dimensions, gals[['zn_x','zn_y','zn_z']])
 
-ngal = {'20': [], '15': [], '10': [], '5': []}
-dgal = {'20': [], '15': [], '10': [], '5': []}
-max_fraction = {'20': [], '15': [], '10': [], '5': []}
-max_fraction_mass = {'20': [], '15': [], '10': [], '5': []}
-n_cluster_desc = {'20': [], '15': [], '10': [], '5': []}
+r = [20, 12.5, 7.5, 5]
+r_str = ['20', '12.5', '7.5', '5']
+
+ngal = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+dgal = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+max_fraction = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+max_fraction_mass = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+n_cluster_desc = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
 
 
 print "Counting galaxies..."
 
-n = 100
-
 # can't calculate distances all in one go, so need to chunk
 #for i,gals in z6_galaxies_mstar.groupby(np.arange(len(z6_galaxies_mstar))//n):
-for i,c in coods.groupby(np.arange(len(coods))//n):
-
-    if i % 5 == 0:
-        print round(float(c.shape[0] * (i+1)) / coods.shape[0] * 100, 2), '%'
+for j,c in coods.groupby(np.arange(len(coods))//n):
+    
+    if j % 5 == 0:
+        print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
 
     # calculate distances
-    dist = np.vstack(c.apply(lambda x: distance(x, gals[['zn_x','zn_y','zn_z']], dimensions), axis=1))
+    #dist = np.vstack(c.apply(lambda x: distance(x, gals[['zn_x','zn_y','zn_z']], dimensions), axis=1))
 
     for R, R_str in zip(r, r_str):
 
-        gal_index = dist < R
-
+        #gal_index = dist < R
+        
+        print "Query KDtree..."        
+        gal_index = T.query_ball_point(c, r=R)
+        
+        start_index = (j*len(gal_index))
+        end_index = (j*len(gal_index))+len(gal_index)
+        
+        print "Count gals..."
+        ngal[R_str][start_index:end_index] = [len(x) for x in gal_index]
+        
+        print "Aggregating gals..."
         for i in range(len(gal_index)):
 
-            n_galaxy = np.sum(gal_index[i])
-            ngal[R_str].append(n_galaxy)
+            #n_galaxy = len(gal_index[i])
+            #ngal[R_str][j+i] = n_galaxy
 
-            if n_galaxy == 0:
+            if ngal[R_str][i] == 0:
                 m_max=0
                 ncd=0
                 agg_count=np.array([0])
                 max_frac=0
             else:
-                agg_mvir = gals.ix[gal_index[i]].groupby('z0_centralId').mean()['z0_central_mcrit200']
-                agg_count = gals.ix[gal_index[i]].groupby('z0_centralId')['z0_centralId'].count().astype(float)
+                agg_mvir = gals.ix[gal_index[i]].groupby('z0_centralId', sort=False).mean()['z0_central_mcrit200']
+                agg_count = gals.ix[gal_index[i]].groupby('z0_centralId', sort=False)['z0_centralId'].count().astype(float)
 
                 agg = pd.DataFrame([agg_mvir, agg_count]).T
 
@@ -88,9 +103,9 @@ for i,c in coods.groupby(np.arange(len(coods))//n):
                 ncd = sum(agg_mvir > 1e4)
                 max_frac = agg_count.max() / agg_count.sum()
 
-            max_fraction_mass[R_str].append(m_max)
-            max_fraction[R_str].append(max_frac)
-            n_cluster_desc[R_str].append(ncd)
+            max_fraction_mass[R_str][j+i] = m_max
+            max_fraction[R_str][j+i] = max_frac
+            n_cluster_desc[R_str][j+i] = ncd
 
 
 for R, R_str in zip(r, r_str):
