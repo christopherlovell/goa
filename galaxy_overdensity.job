@@ -1,0 +1,31 @@
+#$ -S /bin/bash
+#$ -cwd
+#$ -j y
+#$ -o output/
+
+echo "Running job script"
+module load python
+
+
+# python galaxy_overdensity.py mstar 6p42 0
+# python galaxy_overdensity.py mstar 6p42 1
+# python galaxy_overdensity.py mstar 5p03 0
+# python galaxy_overdensity.py mstar 5p03 1
+# python galaxy_overdensity.py mstar 3p95 0
+# python galaxy_overdensity.py mstar 3p95 1
+# python galaxy_overdensity.py mstar 3p10 0
+# python galaxy_overdensity.py mstar 3p10 1
+# python galaxy_overdensity.py mstar 2p07 0
+# python galaxy_overdensity.py mstar 2p07 1
+# python galaxy_overdensity.py sfr 2p07 0
+python galaxy_overdensity.py sfr 2p07 1
+# python galaxy_overdensity.py sfr 3p10 0
+python galaxy_overdensity.py sfr 3p10 1
+# python galaxy_overdensity.py sfr 3p95 0
+python galaxy_overdensity.py sfr 3p95 1
+# python galaxy_overdensity.py sfr 5p03 0
+python galaxy_overdensity.py sfr 5p03 1
+# python galaxy_overdensity.py sfr 6p42 0
+python galaxy_overdensity.py sfr 6p42 1
+
+echo "Finished job script"
