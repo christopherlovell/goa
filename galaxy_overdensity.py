@@ -3,9 +3,7 @@ Calculate galaxy overdensity
 - can calculate for random regions, or for each galaxy. If random, set random flag to 'True'.
 """
 
-random = True
-
-import sys
+random = False
 
 import pandas as pd
 import numpy as np
@@ -20,14 +18,13 @@ from periodic_kdtree import PeriodicCKDTree
 n = 100
 selection_str = 'sfr'
 redshift_str = '2p07'
+directory = 'data/henriques2015a_z2p07_sfr.csv'
 
 print "Reading galaxy data..."
 print directory
 
-
-directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z2p07_mstar.csv'
-
 gals = pd.read_csv(directory, skiprows=104, skipfooter=1, engine='python')
+
 
 print "Filling in NaN values..."
 gals.ix[np.isnan(gals['z0_haloId']), 'z0_haloId'] = -1
@@ -64,12 +61,10 @@ print "Counting galaxies..."
 
 # can't calculate distances all in one go, so need to chunk
 #for i,gals in z6_galaxies_mstar.groupby(np.arange(len(z6_galaxies_mstar))//n):
-<<<<<<< HEAD
 for j,c in coods.groupby(np.arange(len(coods))//n):
     
     if j % 5 == 0:
         print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
-        sys.stdout.flush()
 
     # calculate distances
     #dist = np.vstack(c.apply(lambda x: distance(x, gals[['zn_x','zn_y','zn_z']], dimensions), axis=1))
