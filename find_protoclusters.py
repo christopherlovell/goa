@@ -11,20 +11,31 @@ import pickle as pcl
 
 import hightolowz
 
-redshift = '6p42'
-selection = 'mstar9'
 
+redshift = sys.argv[1]
+selection = sys.argv[2]
+
+print redshift, selection
+sys.stdout.flush()
+
+# redshift = '6p42'
+# selection = 'mstar9'
+
+
+directory = '/lustre/scratch/astro/cl478/protoclusters_data'
 
 print "Reading data..."
-gals = pd.read_csv('/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_mstar.csv' % redshift, skiprows=104, skipfooter=1, engine='python')
+sys.stdout.flush()
+
+gals = pd.read_csv('%s/henriques2015a_z%s_mstar.csv' % (directory, redshift), skiprows=104, skipfooter=1, engine='python')
 
 
-dgal_r20 = pd.read_csv('data/planck1/dgal_mstar9_%s_r20_gals.csv' % redshift)
-dgal_r15 = pd.read_csv('data/planck1/dgal_mstar9_%s_r15_gals.csv' % redshift)
-dgal_r10 = pd.read_csv('data/planck1/dgal_mstar9_%s_r10_gals.csv' % redshift)
-dgal_r5 = pd.read_csv('data/planck1/dgal_mstar9_%s_r5_gals.csv' % redshift)
+dgal_r20 = pd.read_csv('%s/dgal_%s_%s_r20_gals.csv' % (directory, selection, redshift))
+dgal_r12p5 = pd.read_csv('%s/dgal_%s_%s_r12.5_gals.csv' % (directory, selection, redshift))
+dgal_r7p5 = pd.read_csv('%s/dgal_%s_%s_r7.5_gals.csv' % (directory, selection, redshift))
+dgal_r5 = pd.read_csv('%s/dgal_%s_%s_r5_gals.csv' % (directory, selection, redshift))
 
-gals = pd.concat([gals, dgal_r20, dgal_r15, dgal_r10, dgal_r5], axis=1)
+gals = pd.concat([gals, dgal_r20, dgal_r12p5, dgal_r7p5, dgal_r5], axis=1)
 
 # initialise
 print "Intialising arrays..."
@@ -34,9 +45,10 @@ L = 480.279
 dimensions = np.array([L,L,L])
 
 
-for R in [20,15,10,5]:
+for R in [20,12.5,7.5,5]:
 
     print str(R)
+    sys.stdout.flush()
 
     ignore_gals = np.array([True] * len(gals))
     ignore_dgal = np.array([True] * len(gals))
@@ -49,13 +61,13 @@ for R in [20,15,10,5]:
                          'dgal': np.sort(gals['delta_gal_%s' % str(R)])[::-1]})
     
     # print to screen (same lines)
-    import curses
-    stdscr = curses.initscr()
-    curses.noecho()
+    # import curses
+    # stdscr = curses.initscr()
+    # curses.noecho()
     #curses.cbreak()
     
-    
-    while (sum(~ignore_dgal) != len(ignore_dgal)):
+    max_dgal = 1    
+    while (sum(~ignore_dgal) != len(ignore_dgal)) | (max_dgal > 0.):
     
         # filter dgal by all those points not within 2*R of other protoclusters
         # return the highest dgal available
@@ -83,17 +95,20 @@ for R in [20,15,10,5]:
             # save all protocluster members within R
             pc_members.append(np.where(dist < R))
     
-        stdscr.addstr(0, 0, "R: %s" % str(R))
-        stdscr.addstr(1, 0, "Ignore_dgal: {}".format(round(float(sum(~ignore_dgal))/len(ignore_dgal), 4) * 100))
-        stdscr.addstr(2, 0, "delta_gal: {}".format(round(max_dgal, 3)))
-        stdscr.addstr(3, 0, "Galaxies matched: {}".format(round(float(sum(~ignore_gals)) / len(ignore_gals),4) * 100, "%"))
-        stdscr.addstr(4, 0, "Protoclusters identified: {}".format(len(protoclusters)))
-        stdscr.refresh()
-        sys.stdout.flush()
+#        stdscr.addstr(0, 0, "R: %s" % str(R))
+#        stdscr.addstr(1, 0, "Ignore_dgal: {}".format(round(float(sum(~ignore_dgal))/len(ignore_dgal), 4) * 100))
+#        stdscr.addstr(2, 0, "delta_gal: {}".format(round(max_dgal, 3)))
+#        stdscr.addstr(3, 0, "Galaxies matched: {}".format(round(float(sum(~ignore_gals)) / len(ignore_gals),4) * 100, "%"))
+#        stdscr.addstr(4, 0, "Protoclusters identified: {}".format(len(protoclusters)))
+#        stdscr.refresh()
+        # print round(float(sum(~ignore_gals)) / len(ignore_gals),4) * 100
+        # sys.stdout.flush()
     
     
-    curses.echo()
-    #curses.nocbreak()
-    curses.endwin()
+    # curses.echo()
+    # curses.nocbreak()
+    # curses.endwin()
     
     pcl.dump([protoclusters, pc_members], open('data/planck1/protoclusters_%s_%s_R%s.p' % (redshift, selection, str(R)), 'wb'))
+
+
