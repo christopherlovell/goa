@@ -7,6 +7,11 @@
 
 # ---- Galaxy properties
 # snapnum | z
+# 9 | 11.51
+# 10 | 10.57
+# 11 | 9.72
+# 12 | 8.93
+# 14 | 7.57
 # 16 | 6.42
 # 19 | 5.03
 # 22 | 3.95
@@ -111,38 +116,41 @@ from
 -- zn.coldGas as zn_coldGas, zn.hotGas as zn_hotGas,
 -- zn.metalsHotGas as zn_metalsHotGas,
 -- zn.vvir as zn_vvir, zn.vmax as zn_vmax,
+-- zn.xrayLum as zn_xrayLum,
+-- zn.phkey as zn_phKey,
 
 
-wget --http-user=***** --http-passwd=***** "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
+
+wget --http-user=****** --http-passwd=****** "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
 select
   zn.galaxyId as zn_galaxyId,
   zn.haloId as zn_haloId,
   zn.fofCentralId as zn_fofCentralId,
-  zn.phkey as zn_phKey,
   zn.x as zn_x, zn.y as zn_y, zn.z as zn_z,
   zn.stellarMass as zn_stellarMass,
   zn.sfr as zn_sfr,
-  zn.blackHoleMass as zn_blackHoleMass, zn.xrayLum as zn_xrayLum,
+  zn.blackHoleMass as zn_blackHoleMass,
   zn.quasarAccretionRate as zn_quasarAccretionRate,
   zn.radioAccretionRate as zn_radioAccretionRate,
   z0.z0_haloId as z0_haloId,
-  z0.z0_x as z0_x, z0.z0_y as z0_y, z0.z0_z as z0_z,
-  z0.z0_central_x as z0_central_x, z0.z0_central_y as z0_central_y, z0.z0_central_z as z0_central_z,
+  z0.z0_mcrit200 as z0_mcrit200,
   z0.z0_centralId as z0_centralId,
   z0.z0_central_mcrit200 as z0_central_mcrit200,
-  z0.z0_central_rcrit200 as z0_central_rcrit200
+  z0.z0_central_rcrit200 as z0_central_rcrit200,
+  z0.z0_x as z0_x, z0.z0_y as z0_y, z0.z0_z as z0_z,
+  z0.z0_central_x as z0_central_x, z0.z0_central_y as z0_central_y, z0.z0_central_z as z0_central_z
 from
   /* Select all galaxies above a given observational threshold for a particular redshift */
   (select
-    galaxyId, haloId, fofCentralId, phkey, x, y, z,
-    stellarMass, sfr, vvir, vmax,
-    blackHoleMass, xrayLum, descendantId, treeRootID,
-    quasarAccretionRate, radioAccretionRate, coldGas, hotGas, metalsHotGas
+    galaxyId, haloId, fofCentralId, x, y, z,
+    stellarMass, sfr,
+    blackHoleMass, descendantId, treeRootID,
+    quasarAccretionRate, radioAccretionRate
   from
     Henriques2015a..MRscPlanck1
   where
-    snapnum = 22
-    and stellarMass > 0.1) zn
+    snapnum = 9
+    and sfr > 1) zn
 
   left join
 
@@ -150,6 +158,7 @@ from
    prog.haloId as zn_haloId,
    z0_join.halos_haloId as z0_haloId,
    z0_join.halos_x as z0_x, z0_join.halos_y as z0_y, z0_join.halos_z as z0_z,
+   z0_join.halos_m_crit200 as z0_mcrit200,
    z0_join.cen_x as z0_central_x, z0_join.cen_y as z0_central_y, z0_join.cen_z as z0_central_z,
    z0_join.cen_haloId as z0_centralId,
    z0_join.cen_m_crit200 as z0_central_mcrit200,
@@ -162,35 +171,35 @@ from
       cen.m_crit200 as cen_m_crit200, cen.r_crit200 as cen_r_crit200,
       halos.x as halos_x, halos.y as halos_y, halos.z as halos_z,
       halos.haloId as halos_haloId,
-      halos.firstHaloInFOFgroupId as halos_firstHaloInFOFgroupId,
+      halos.m_crit200 as halos_m_crit200,
       halos.lastProgenitorId as halos_lastProgenitorId
 
       from
 
         (select
-        m_crit200, haloId, firstHaloInFOFgroupId, x, y, z,
+        m_crit200, haloId, x, y, z,
         POWER((m_crit200 * 3.)/(200 * 12.7 * 4 * Pi()), 1./3) * 0.67 as r_crit200
         from mpahalotrees..mrscplanck1
         where snapnum = 58
-        and firstHaloInFOFgroupId = haloId
-        and m_crit200 > 1e4) cen,
+        and firstHaloInFOFgroupId = haloId) cen,
 
         (select
-        x, y, z, haloId, firstHaloInFOFgroupId, lastProgenitorId
+        x, y, z, haloId, m_crit200, lastProgenitorId, firstHaloInFOFgroupId
         from mpahalotrees..mrscplanck1
         where snapnum = 58) halos
 
       where
-      halos.x between cen.x - cen.r_crit200 and cen.x %2B cen.r_crit200
+      cen.haloId = halos.firstHaloInFOFgroupId
+      and halos.x between cen.x - cen.r_crit200 and cen.x %2B cen.r_crit200
       and halos.y between cen.y - cen.r_crit200 and cen.y %2B cen.r_crit200
       and halos.z between cen.z - cen.r_crit200 and cen.z %2B cen.r_crit200
       and POWER(POWER(halos.x - cen.x, 2) %2B POWER(halos.y - cen.y, 2) %2B POWER(halos.z - cen.z, 2), 0.5) <= cen.r_crit200) z0_join
 
     where
     prog.haloId between z0_join.halos_haloId and z0_join.halos_lastProgenitorId
-    and prog.snapnum = 22) z0
+    and prog.snapnum = 9) z0
 
-      on zn.haloId = z0.zn_haloId
-" -O henriques2015a_z3p95_mstar_r200.csv
+    on zn.haloId = z0.zn_haloId
+" -O henriques2015a_z11p51_sfr_r200.csv
 
 "
