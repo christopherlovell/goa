@@ -72,11 +72,23 @@ r = [20, 12.5, 7.5, 5]
 r_str = ['20', '12.5', '7.5', '5']
 
 ngal = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+nagn = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
 dgal = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
 max_fraction = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
 max_fraction_mass = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
 n_cluster_desc = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
 frac_cluster_desc = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+
+# AGN constants
+epsilon = 0.1
+c = 2.97 * 10**8 # m s^-1
+
+Mdot = (gals['zn_quasarAccretionRate'] + gals['zn_radioAccretionRate']) * 1.989 * 10**30 / (365.25*24*60*60)
+
+Lbol = (epsilon * Mdot * c**2) / 1e-7  # erg s^-1
+gals['agn_lum'] = Lbol
+
+agn_lim = 1e46
 
 
 print "Counting galaxies..."
@@ -107,9 +119,11 @@ for j,c in coods.groupby(np.arange(len(coods))//n):
                 n_cluster_desc[R_str][start_index+i] = 0
                 frac_cluster_desc[R_str][start_index+i] = 0
                 max_fraction[R_str][start_index+i] = 0
+                nagn[R_str][start_index+i] = 0
             else:
                 total = sum([x[1] for x in counter])
     
+                nagn[R_str][start_index+i] = np.sum(gals.ix[gal_index[i]]['agn_lum'] > agn_lim)
                 max_fraction_mass[R_str][start_index+i] = counter[0][0]
                 cluster_descendants = [(x[0] > 1e4) for x in counter]
                 n_cluster_desc[R_str][start_index+i] = np.sum(cluster_descendants)
@@ -131,12 +145,13 @@ for R, R_str in zip(r, r_str):
     # delta_galaxy
     dgal[R_str][:] = (np.array(ngal[R_str]) - avg) / avg
 
-    df = pd.DataFrame(np.array([dgal[R_str], ngal[R_str], max_fraction[R_str], max_fraction_mass[R_str], n_cluster_desc[R_str]]).T,
+    df = pd.DataFrame(np.array([dgal[R_str], ngal[R_str], max_fraction[R_str], max_fraction_mass[R_str], n_cluster_desc[R_str], nagn[R_str]]).T,
                      columns=('delta_gal_%s' % R_str,
                               'ngal_%s' % R_str,
                               'max_fraction_%s' % R_str,
                               'max_fraction_mass_%s' % R_str,
-                              'n_cluster_desc_%s' % R_str))
+                              'n_cluster_desc_%s' % R_str,
+                              'n_agn_%s' % R_str))
 
     df.to_csv('%s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R_str, location_str), index=False)
 
