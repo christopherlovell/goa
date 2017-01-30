@@ -1,5 +1,6 @@
 """
 Calculate protocluster completeness and purity at a given radii for different selections
+
 """
 
 import matplotlib.pyplot as plt
@@ -16,58 +17,65 @@ import sys
 # https://github.com/patvarilly/periodic_kdtree
 from periodic_kdtree import PeriodicCKDTree
 
-def cluster_stats(gals, L):
+def cluster_stats(gals, L=500):
 
-    cluster_ids = pd.unique(gals[gals['z0_central_mcrit200'] > 1e4]['z0_centralId'])
+    clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
 
-    print "Clusters: ", len(cluster_ids)
+    # if len(cluster_ids) == 0:
+    #     print "Selecting clusters..."
+    #     cluster_ids = pd.unique(gals[gals['z0_central_mcrit200'] > 1e4]['z0_centralId'])
 
-    cluster_stats = [None] * len(cluster_ids)
+    print "N Clusters: ", len(clusters)
+
+    cluster_stats = [None] * len(clusters)
 
     dimensions = np.array([L, L, L])
 
     print "Building periodic KDtree..."
     T = PeriodicCKDTree(dimensions, gals[['zn_x','zn_y','zn_z']])
 
-    for i, cluster in enumerate(cluster_ids):
-
+    print "Calculating cluster properties..."
+    for i, cid in enumerate(clusters['z0_centralId']):
         # sys.stdout.flush()
 
-        coods = gals[gals['z0_centralId']==cluster][['zn_x','zn_y','zn_z']].copy()
-        coods = coods.reset_index(drop=True)
+        # subset protocluster galaxy coordinates
+        coods = gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']].copy().reset_index(drop=True)
 
+        # normalise coordinate values
         if np.abs(coods['zn_x'].max() - coods['zn_x'].min()) > L/2:
             coods['zn_x'] = coods['zn_x'] - L
-            coods.loc[coods['zn_x'] < -L/2, 'zn_x'] = gals[(gals['z0_centralId'] == cluster) & (coods['zn_x'] < -L/2)]['zn_x']
+            coods.loc[coods['zn_x'] < -L/2, 'zn_x'] = gals[(gals['z0_centralId'] == cid) & (coods['zn_x'] < -L/2)]['zn_x']
 
         if np.abs(coods['zn_y'].max() - coods['zn_y'].min()) > L/2:
             coods['zn_y'] = coods['zn_y'] - L
-            coods.loc[coods['zn_y'] < -L/2, 'zn_y'] = gals[(gals['z0_centralId'] == cluster) & (coods['zn_y'] < -L/2)]['zn_y']
+            coods.loc[coods['zn_y'] < -L/2, 'zn_y'] = gals[(gals['z0_centralId'] == cid) & (coods['zn_y'] < -L/2)]['zn_y']
 
         if np.abs(coods['zn_z'].max() - coods['zn_z'].min()) > L/2:
             coods['zn_z'] = coods['zn_z'] - L
-            coods.loc[coods['zn_z'] < -L/2, 'zn_z'] = gals[(gals['z0_centralId'] == cluster) & (coods['zn_z'] < -L/2)]['zn_z']
+            coods.loc[coods['zn_z'] < -L/2, 'zn_z'] = gals[(gals['z0_centralId'] == cid) & (coods['zn_z'] < -L/2)]['zn_z']
 
-        center = np.mean(coods)
-        
-        # gal_dist = hightolowz.distance(center, gals[['zn_x','zn_y','zn_z']], dimensions)[0]
 
-        no_pcs = np.sum(gals['z0_centralId'] == cluster)
+        center = np.mean(coods)  # find protocluster center
+
+        no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
 
         completeness = []
         purity = []
+        dgal = []
 
-        for R in [float(x)/2 for x in range(61)]:
+        #gal_index = T.query_ball_point(center, r=30) # find galaxies in sphere
+
+        # calculate statistics over R
+        for R in [float(x)/2 for x in range(61)[1:]]:
 
             gal_index = T.query_ball_point(center, r=R)
 
             all_gals_in_R = len(gal_index)
-            pcs_in_R = float(sum(gals.ix[gal_index]['z0_centralId'] == cluster))
+            pcs_in_R = float(sum(gals.ix[gal_index]['z0_centralId'] == cid))
             completeness.append(pcs_in_R / no_pcs)
 
-            # all_gals_in_R = np.sum(gal_dist < R)
-            # pcs_in_R = float(np.sum(gal_dist[np.array(gals['z0_centralId'] == cluster)] < R))
-            # completeness.append(pcs_in_R / no_pcs)
+            avg_dgal = float(gals.shape[0]) / L**3 * 4./3 * np.pi * R**3
+            dgal.append((all_gals_in_R - avg_dgal) / avg_dgal)
 
             if all_gals_in_R == 0:
                 purity.append(1)
@@ -75,15 +83,14 @@ def cluster_stats(gals, L):
                 purity.append(pcs_in_R / all_gals_in_R)
 
 
-        cluster_stats[i] = [completeness, purity]
-
-    completeness_percentiles = np.array([np.percentile(y, [90,10]) for y in np.vstack([x[0] for x in cluster_stats]).T])
-    purity_percentiles = np.array([np.percentile(y, [90,10]) for y in np.vstack([x[1] for x in cluster_stats]).T])
+        cluster_stats[i] = np.array([completeness, purity, dgal])
 
 
-    return {'cstats': cluster_stats,
-            'completeness_percentiles': completeness_percentiles,
-            'purity_percentiles': purity_percentiles}
+    # print "Calculating percentiles..."
+    # completeness_percentiles = np.array([np.percentile(y, [84,16]) for y in np.vstack([x[0] for x in cluster_stats]).T])
+    # purity_percentiles = np.array([np.percentile(y, [84,16]) for y in np.vstack([x[1] for x in cluster_stats]).T])
+
+    return {'cstats': np.array(cluster_stats), 'clusters': clusters}
 
 
 if __name__ == "__main__":

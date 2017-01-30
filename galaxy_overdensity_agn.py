@@ -44,7 +44,7 @@ sys.stdout.flush()
 
 
 # gals = pd.read_csv(directory, skiprows=104, skipfooter=1, engine='python')
-gals = pd.read_csv(directory, skiprows=107, skipfooter=1, engine='python')
+gals = pd.read_csv(directory, skiprows=114, skipfooter=1, engine='python')
 
 
 print "Filling in NaN values..."
