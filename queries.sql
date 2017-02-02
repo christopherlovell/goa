@@ -47,6 +47,8 @@ select
   zn.blackHoleMass as zn_blackHoleMass,
   zn.quasarAccretionRate as zn_quasarAccretionRate,
   zn.radioAccretionRate as zn_radioAccretionRate,
+  zn.np as zn_np, zn.centralMvir as zn_centralMvir,
+  zn.mvir as zn_mvir, zn.rvir as zn_rvir,
   z0.z0_haloId as z0_haloId,
   z0.z0_mcrit200 as z0_mcrit200,
   z0.z0_centralId as z0_centralId,
@@ -63,7 +65,7 @@ from
     velX, velY, velZ, stellarMass, sfr,
     blackHoleMass, descendantId, treeRootID,
     quasarAccretionRate, radioAccretionRate,
-    np, centralMvir
+    np, centralMvir, mvir, rvir
   from
     Henriques2015a..MRscPlanck1
   where
