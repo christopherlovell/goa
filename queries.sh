@@ -37,7 +37,7 @@ z=(
 echo "starting download..."
 
 
-for j in ${!snapnum[*]}; do
+for j in ${!selection[*]}; do
   for index in ${!snapnum[*]}; do
 
     echo "${snapnum[$index]}, ${z[$index]} | ${selection[$j]} > ${selectionValue[$j]}"
@@ -127,7 +127,7 @@ for j in ${!snapnum[*]}; do
         and prog.snapnum = ${snapnum[$index]}) z0
 
         on zn.haloId = z0.zn_haloId
-    " -O data/r200/henriques2015a_z${z[$index]}_sfr_r200.csv -q
+    " -O data/r200/henriques2015a_z${z[$index]}_${selection[$j]}_r200.csv -q
 
   done
 done
