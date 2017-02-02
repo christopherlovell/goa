@@ -4,16 +4,12 @@ Calculate galaxy overdensity
 - finds overdensity in redshift space for a cylinder with radius R, depth deltac
 """
 
-from collections import Counter
-
 import sys
 
 import pandas as pd
 import numpy as np
-import itertools as it
-from scipy.spatial.distance import cdist
 
-from hightolowz import distance
+from collections import Counter
 
 # https://github.com/patvarilly/periodic_kdtree
 from periodic_kdtree import PeriodicCKDTree
@@ -32,18 +28,16 @@ random = bool(int(sys.argv[3]))
 # redshift_str = '3p10'
 # random = False
 
-# selection_str = selection_str+'10'
-n = 100         # chunk length
-N = 100000      # number of random regions
-
 print selection_str
 print random
 
-z = float(redshift_str.replace('p','.'))
-L = 480.279
-dimensions = np.array([L, L, L])
+# selection_str = selection_str+'10'
+n = 100       # chunk length
+N = 100000    # number of random regions
+L = 480.279   # box side length
 
-print "Reading galaxy data..."
+z = float(redshift_str.replace('p','.'))
+dimensions = np.array([L, L, L])
 
 #directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
 directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
@@ -52,7 +46,8 @@ out_directory = '~/sussex/protoclusters/data/r200'
 print "dir:", directory
 sys.stdout.flush()
 
-gals = pd.read_csv(directory, skiprows=111, skipfooter=1, engine='python')
+print "Reading galaxy data..."
+gals = pd.read_csv(directory, skiprows=120, skipfooter=1, engine='python')
 
 print "Filling in NaN values..."
 gals.ix[np.isnan(gals['z0_haloId']), 'z0_haloId'] = -1
@@ -70,84 +65,145 @@ else:
 
 # Convert z-axis to redshift space
 gal_coods = gals[['zn_x','zn_y','zn_z']].copy()
-gal_coods['zn_z'] += gals['zn_velZ'] * (1+z) / Planck13.H(z)
+
+# print gal_coods
+print Planck13.H(z)
+gal_coods['zn_z'] += gals['zn_velZ'] * (1+z) / Planck13.H(z).value
 
 # build KDtree
 T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
-r = [20, 12.5, 7.5, 5]
-r_str = ['20', '12.5', '7.5', '5']
+avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
-ngal = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
-dgal = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
-max_fraction = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
-max_fraction_mass = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
-n_cluster_desc = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
-frac_cluster_desc = {'20': [None] * len(coods), '12.5': [None] * len(coods), '7.5': [None] * len(coods), '5': [None] * len(coods)}
+clim = 0.4
+plim = 0.4
 
+r = [2.5, 5, 7.5, 10, 15]
 
-print "Counting galaxies..."
+print "Counting galaxies... (", len(coods),")"
 sys.stdout.flush()
 
+label = np.zeros((len(r), len(coods)))
+dgal = np.zeros((len(r), len(coods)))
+completeness = np.zeros((len(r), len(coods)))
+purity = np.zeros((len(r), len(coods)))
+
 # can't calculate distances all in one go, so need to chunk
-#for i,gals in z6_galaxies_mstar.groupby(np.arange(len(z6_galaxies_mstar))//n):
 for j,c in coods.groupby(np.arange(len(coods))//n):
 
-    if j % 80 == 0:  # print progress
+    # print progress
+    if j % 10 == 0:
         print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
 
-    for R, R_str in zip(r, r_str):
+    # find all galaxies within a sphere of radius the max extent of the cylinder
+    deltac = 2 * max(r) # TEMP while deltac not changing
+    all_gal_index = T.query_ball_point(c, r=pow(max(r)**2 + deltac**2, 0.5))
 
-        gal_index = T.query_ball_point(c, r=R)  # get galaxy indices
+    # loop through radii (r)
+    for Ridx, R in enumerate(r):
 
-        # save start and end indices
+        # set deltaz equal to radius (can optionally change deltaz)
+        deltac = 2 * R
+
+        gal_index = all_gal_index.copy()
+
+        # # save start and end indices
         start_index = (j*n)
-        end_index = (j*n)+len(gal_index)
 
-        ngal[R_str][start_index:end_index] = [len(x) for x in gal_index]
+        vol_avg = np.pi * R**2 * deltac * avg # average overdensity in chosen volume
 
         for i in range(len(gal_index)):
 
-            counter = Counter(gals.ix[gal_index[i]]['z0_central_mcrit200']).most_common()
+            # filter by cylinder (radius)
+            gal_index[i] = np.array(gal_index[i])[np.array(pow((gal_coods.ix[gal_index[i]]['zn_x'] - c.ix[start_index+i]['zn_x'])**2 + (gal_coods.ix[gal_index[i]]['zn_y'] - c.ix[start_index+i]['zn_y'])**2, 0.5) < R)]
 
-            if len(counter) == 0:
-                max_fraction_mass[R_str][start_index+i] = 0
-                n_cluster_desc[R_str][start_index+i] = 0
-                frac_cluster_desc[R_str][start_index+i] = 0
-                max_fraction[R_str][start_index+i] = 0
+            # filter by cylinder (depth)
+            gal_index[i] = gal_index[i][np.array(np.abs(gal_coods.ix[gal_index[i]]['zn_z'] - c.ix[start_index+i]['zn_z']) < deltac)]
+
+            dgal[Ridx, start_index+i] = (len(gal_index[i]) - vol_avg) / vol_avg # dgal
+
+            cluster_ids = Counter(gals.ix[gal_index[i]][gals.ix[gal_index[i]]['z0_central_mcrit200'] > 1e4]['z0_centralId'])
+
+            if len(cluster_ids) > 0:
+
+                cstats = np.zeros((len(cluster_ids), 2))
+
+                for k, (q, no) in enumerate(cluster_ids.items()):
+                    cluster_gals = gals.ix[gals['z0_centralId'] == q]
+                    cstats[k,0] = float(no) / len(cluster_gals) # completeness
+                    cstats[k,1] = float(no) / len(gal_index) # purity
+
+                # find id of max completeness and purity in cstats array
+                max_completeness = np.where(cstats[:,0] == cstats[:,0].max())[0]
+                max_purity = np.where(cstats[:,1] == cstats[:,1].max())[0]
+
+                # sometimes multiple clusters can have same completeness or purity in a single candidate
+                # - use the cluster with the highest complementary completeness/purity
+                if len(max_completeness) > 1:
+
+                    # get matches between completeness and purity
+                    matches = [x in max_purity for x in max_completeness]
+
+                    if np.sum(matches) > 0:
+                        # just use the first one
+                        max_completeness = [np.where(matches)[0][0]]
+                        max_purity = [np.where(matches)[0][0]]
+                    else:
+                        max_completeness = [max_completeness[np.argmax(cstats[max_completeness, 1])]]
+
+                if len(max_purity) > 1:
+
+                    matches = [x in max_completeness for x in max_purity]
+
+                    if np.sum(matches) > 0:
+                        max_completeness = [np.where(matches)[0][0]]
+                        max_purity = [np.where(matches)[0][0]]
+
+                    #if max_purity in max_completeness:
+                        #max_purity = max_completeness
+                    else:
+                        max_purity = [max_purity[np.argmax(cstats[max_completeness, 0])]]
+
+
+                # sometimes the cluster with the highest completeness does not have the highest purity, or vice versa
+                # - use the cluster with the highest combined purity/completeness added in quadrature
+                if max_completeness[0] != max_purity[0]:
+                    max_completeness = [np.argmax([pow(np.sum(x**2), 0.5) for x in cstats])]
+                    max_purity = max_completeness
+
+                # save completeness and purity values
+                completeness[Ridx, start_index+i] = cstats[max_completeness[0], 0]
+                purity[Ridx, start_index+i] = cstats[max_purity[0], 1]
+
+                # label candidates
+                if cstats[max_completeness[0], 0] >= clim: # if completeness high
+                    if cstats[max_purity[0], 1] >= plim: # ..and purity high
+                        label[Ridx, start_index+i] =  1 # 'protocluster'
+                    else: # ..and purity low
+                        label[Ridx, start_index+i] = 2 # 'pc in field'
+                else: # if completeness low
+                    if cstats[max_purity[0], 1] >= plim:  # ..and purity high
+                        label[Ridx, start_index+i] = 3 # 'part protocluster'
+                    else: # ..and purity low
+                        label[Ridx, start_index+i] = 0 # 'field'
+
             else:
-                total = sum([x[1] for x in counter])
-
-                max_fraction_mass[R_str][start_index+i] = counter[0][0]
-                cluster_descendants = [(x[0] > 1e4) for x in counter]
-                n_cluster_desc[R_str][start_index+i] = np.sum(cluster_descendants)
-                frac_cluster_desc[R_str][start_index+i] = float(np.sum([x[1] for x in counter if (x[0] > 1e4)])) / total
-                max_fraction[R_str][start_index+i] = float(counter[0][1]) / total
+                completeness[Ridx, start_index+i] = 0.
+                purity[Ridx, start_index+i] = 0.
+                label[Ridx, start_index+i] = 0 # 'field'
 
 
-for R, R_str in zip(r, r_str):
 
-    # print np.where([x is None for x in ngal[R_str]])
+for Ridx, R in enumerate(r):
 
-    print "Saving data..."
-    print "R: ", R_str
+    print "Saving data (R:",R,")..."
 
-    avg = float(gals.shape[0]) / L**3 * 4./3 * np.pi * R**3
+    df = pd.DataFrame(np.array([label[Ridx], dgal[Ridx], completeness[Ridx], purity[Ridx]]).T,
+                  columns = ['label_%s'%R, 'dgal_%s'%R,
+                             'completeness_%s'%R, 'purity_%s'%R])
 
-    print "Average density: ", avg, "\n ........ "
+    df.to_csv('%s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R, location_str), index=False)
 
-    # delta_galaxy
-    dgal[R_str][:] = (np.array(ngal[R_str]) - avg) / avg
-
-    df = pd.DataFrame(np.array([dgal[R_str], ngal[R_str], max_fraction[R_str], max_fraction_mass[R_str], n_cluster_desc[R_str]]).T,
-                     columns=('delta_gal_%s' % R_str,
-                              'ngal_%s' % R_str,
-                              'max_fraction_%s' % R_str,
-                              'max_fraction_mass_%s' % R_str,
-                              'n_cluster_desc_%s' % R_str))
-
-    df.to_csv('%s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R_str, location_str), index=False)
-
-    print 'Saved to %s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R_str, location_str)
+    print 'Saved to %s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R, location_str)
 
 print "Complete!"
