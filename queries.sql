@@ -31,6 +31,7 @@ select
   zn.galaxyId as zn_galaxyId,
   zn.haloId as zn_haloId,
   zn.fofCentralId as zn_fofCentralId,
+  zn.centralMvir as zn_centralMvir,
   zn.phkey as zn_phKey,
   zn.x as zn_x, zn.y as zn_y, zn.z as zn_z,
   zn.stellarMass as zn_stellarMass,
@@ -48,10 +49,11 @@ select
 from
   /* Select all galaxies above a given observational threshold for a particular redshift */
   (select
-    galaxyId, haloId, fofCentralId, phkey, x, y, z,
+    galaxyId, haloId, fofCentralId, phkey, x, y, z, centralMvir,
     stellarMass, sfr, vvir, vmax,
     blackHoleMass, xrayLum, descendantId, treeRootID,
-    quasarAccretionRate, radioAccretionRate, coldGas, hotGas, metalsHotGas
+    quasarAccretionRate, radioAccretionRate, coldGas, hotGas, metalsHotGas,
+    np
   from
     Henriques2015a..MRscPlanck1
   where
@@ -145,7 +147,8 @@ from
     galaxyId, haloId, fofCentralId, x, y, z,
     stellarMass, sfr,
     blackHoleMass, descendantId, treeRootID,
-    quasarAccretionRate, radioAccretionRate
+    quasarAccretionRate, radioAccretionRate,
+    np, centralMvir
   from
     Henriques2015a..MRscPlanck1
   where
