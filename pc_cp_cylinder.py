@@ -19,8 +19,7 @@ from periodic_kdtree import PeriodicCKDTree
 
 def cluster_stats(gals, L=500):
 
-    # clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
-    clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max().reset_index(level=2, drop=True)
+    clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
 
     # if len(cluster_ids) == 0:
     #     print "Selecting clusters..."
@@ -45,17 +44,18 @@ def cluster_stats(gals, L=500):
         # normalise coordinate values
         if np.abs(coods['zn_x'].max() - coods['zn_x'].min()) > L/2:
             coods['zn_x'] = coods['zn_x'] - L
-            coods.loc[coods['zn_x'] < -L/2, 'zn_x'] += L # gals[(gals['z0_centralId'] == cid) & (coods['zn_x'] < -L/2)]['zn_x']
+            coods.loc[coods['zn_x'] < -L/2, 'zn_x'] = gals[(gals['z0_centralId'] == cid) & (coods['zn_x'] < -L/2)]['zn_x']
 
         if np.abs(coods['zn_y'].max() - coods['zn_y'].min()) > L/2:
             coods['zn_y'] = coods['zn_y'] - L
-            coods.loc[coods['zn_y'] < -L/2, 'zn_y'] += L # gals[(gals['z0_centralId'] == cid) & (coods['zn_y'] < -L/2)]['zn_y']
+            coods.loc[coods['zn_y'] < -L/2, 'zn_y'] = gals[(gals['z0_centralId'] == cid) & (coods['zn_y'] < -L/2)]['zn_y']
 
         if np.abs(coods['zn_z'].max() - coods['zn_z'].min()) > L/2:
             coods['zn_z'] = coods['zn_z'] - L
-            coods.loc[coods['zn_z'] < -L/2, 'zn_z'] += L# gals[(gals['z0_centralId'] == cid) & (coods['zn_z'] < -L/2)]['zn_z']
+            coods.loc[coods['zn_z'] < -L/2, 'zn_z'] = gals[(gals['z0_centralId'] == cid) & (coods['zn_z'] < -L/2)]['zn_z']
 
-        center = np.median(coods, axis=0)  # find protocluster center
+
+        center = np.mean(coods)  # find protocluster center
 
         no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
 
