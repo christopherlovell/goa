@@ -17,6 +17,8 @@ from periodic_kdtree import PeriodicCKDTree
 # TODO: check this is the exact cosmology...
 from astropy.cosmology import Planck13
 
+from norm_cood import norm_coods
+
 
 print sys.argv[1:]
 
@@ -33,7 +35,7 @@ print random
 
 # selection_str = selection_str+'10'
 n = 100       # chunk length
-N = 100000    # number of random regions
+N = 100    # number of random regions
 L = 480.279   # box side length
 
 z = float(redshift_str.replace('p','.'))
@@ -70,7 +72,7 @@ gal_coods = gals[['zn_x','zn_y','zn_z']].copy()
 print Planck13.H(z)
 gal_coods['zn_z'] += gals['zn_velZ'] * (1+z) / Planck13.H(z).value
 
-# build KDtree
+print "Building KDtree..."
 T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
@@ -80,47 +82,45 @@ plim = 0.4
 
 r = [2.5, 5, 7.5, 10, 15]
 
-print "Counting galaxies... (", len(coods),")"
-sys.stdout.flush()
-
 label = np.zeros((len(r), len(coods)))
 dgal = np.zeros((len(r), len(coods)))
 completeness = np.zeros((len(r), len(coods)))
 purity = np.zeros((len(r), len(coods)))
 
-# can't calculate distances all in one go, so need to chunk
-for j,c in coods.groupby(np.arange(len(coods))//n):
+print "Counting galaxies... (", len(coods),")"
+sys.stdout.flush()
 
-    # print progress
-    if j % 10 == 0:
-        print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
+ # loop through radii (r)
+for Ridx, R in enumerate(r):
 
-    # find all galaxies within a sphere of radius the max extent of the cylinder
-    deltac = 2 * max(r) # TEMP while deltac not changing
-    all_gal_index = T.query_ball_point(c, r=pow(max(r)**2 + deltac**2, 0.5))
+    print "R:",R,"\n ---------------------------------"    
 
-    # loop through radii (r)
-    for Ridx, R in enumerate(r):
+    # set deltaz equal to radius (can optionally change deltaz)
+    half_deltac = R
 
-        # set deltaz equal to radius (can optionally change deltaz)
-        deltac = 2 * R
+    vol_avg = np.pi * R**2 * half_deltac * avg  # average overdensity in chosen volume
 
-        gal_index = all_gal_index.copy()
+    # can't calculate distances all in one go, so need to chunk
+    for j,c in coods.groupby(np.arange(len(coods))//n):
+
+        # print progress
+        if j % 10 == 0:
+            print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
+
+
+        # find all galaxies within a sphere of radius the max extent of the cylinder
+        # deltac = 2 * max(r) # TEMP while deltac not changing
+        gal_index = T.query_ball_point(c, r=(R**2 + half_deltac**2)**0.5)
+
+        # filter by cylinder using norm_coods()
+        gal_index = [np.array(gal_index[k])[norm_coods(gal_coods.ix[gal_index[k]].values, c.ix[k + j*n].values, R, half_deltac, L)] for k in range(n)]
 
         # # save start and end indices
         start_index = (j*n)
 
-        vol_avg = np.pi * R**2 * deltac * avg # average overdensity in chosen volume
+        dgal[Ridx, start_index:(start_index+n)] = (np.array([len(x) for x in gal_index]) - vol_avg) / vol_avg
 
         for i in range(len(gal_index)):
-
-            # filter by cylinder (radius)
-            gal_index[i] = np.array(gal_index[i])[np.array(pow((gal_coods.ix[gal_index[i]]['zn_x'] - c.ix[start_index+i]['zn_x'])**2 + (gal_coods.ix[gal_index[i]]['zn_y'] - c.ix[start_index+i]['zn_y'])**2, 0.5) < R)]
-
-            # filter by cylinder (depth)
-            gal_index[i] = gal_index[i][np.array(np.abs(gal_coods.ix[gal_index[i]]['zn_z'] - c.ix[start_index+i]['zn_z']) < deltac)]
-
-            dgal[Ridx, start_index+i] = (len(gal_index[i]) - vol_avg) / vol_avg # dgal
 
             cluster_ids = Counter(gals.ix[gal_index[i]][gals.ix[gal_index[i]]['z0_central_mcrit200'] > 1e4]['z0_centralId'])
 
@@ -130,8 +130,8 @@ for j,c in coods.groupby(np.arange(len(coods))//n):
 
                 for k, (q, no) in enumerate(cluster_ids.items()):
                     cluster_gals = gals.ix[gals['z0_centralId'] == q]
-                    cstats[k,0] = float(no) / len(cluster_gals) # completeness
-                    cstats[k,1] = float(no) / len(gal_index) # purity
+                    cstats[k,0] = float(no) / len(cluster_gals)  # completeness
+                    cstats[k,1] = float(no) / len(gal_index)  # purity
 
                 # find id of max completeness and purity in cstats array
                 max_completeness = np.where(cstats[:,0] == cstats[:,0].max())[0]
@@ -159,8 +159,6 @@ for j,c in coods.groupby(np.arange(len(coods))//n):
                         max_completeness = [np.where(matches)[0][0]]
                         max_purity = [np.where(matches)[0][0]]
 
-                    #if max_purity in max_completeness:
-                        #max_purity = max_completeness
                     else:
                         max_purity = [max_purity[np.argmax(cstats[max_completeness, 0])]]
 
