@@ -6,8 +6,8 @@ Calculate galaxy overdensity
 
 import sys
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from collections import Counter
 
@@ -40,14 +40,16 @@ z = float(redshift_str.replace('p','.'))
 dimensions = np.array([L, L, L])
 
 #directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
-directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
-out_directory = '~/sussex/protoclusters/data/r200'
+#directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
+directory = '~/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
+#out_directory = '~/sussex/protoclusters/data/r200'
+out_directory = '~/protoclusters/data/r200'
 
 print "dir:", directory
 sys.stdout.flush()
 
 print "Reading galaxy data..."
-gals = pd.read_csv(directory, skiprows=120, skipfooter=1, engine='python')
+gals = pd.read_csv(directory, skiprows=122, skipfooter=1, engine='python')
 
 print "Filling in NaN values..."
 gals.ix[np.isnan(gals['z0_haloId']), 'z0_haloId'] = -1
@@ -92,7 +94,7 @@ purity = np.zeros((len(r), len(coods)))
 for j,c in coods.groupby(np.arange(len(coods))//n):
 
     # print progress
-    if j % 10 == 0:
+    if j % 20 == 0:
         print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
 
     # find all galaxies within a sphere of radius the max extent of the cylinder
