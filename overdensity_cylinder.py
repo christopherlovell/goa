@@ -35,7 +35,7 @@ print random
 
 # selection_str = selection_str+'10'
 n = 100       # chunk length
-N = 100    # number of random regions
+N = 100000    # number of random regions
 L = 480.279   # box side length
 
 z = float(redshift_str.replace('p','.'))
@@ -83,8 +83,9 @@ clim = 0.4
 plim = 0.4
 
 r = [2.5, 5, 7.5, 10, 15]
+half_deltac = [5, 10, 15]
 
-label = np.zeros((len(r), len(coods)))
+# label = np.zeros((len(r), len(coods)))
 dgal = np.zeros((len(r), len(coods)))
 completeness = np.zeros((len(r), len(coods)))
 purity = np.zeros((len(r), len(coods)))
@@ -93,7 +94,7 @@ print "Counting galaxies... (", len(coods),")"
 sys.stdout.flush()
 
  # loop through radii (r)
-for Ridx, R in enumerate(r):
+for Ridx, R in enumerate(r[::-1]):
 
     print "R:",R,"\n ---------------------------------"    
 
@@ -106,7 +107,7 @@ for Ridx, R in enumerate(r):
     for j,c in coods.groupby(np.arange(len(coods))//n):
 
         # print progress
-        if j % 10 == 0:
+        if j % 100 == 0:
             print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
 
 
@@ -115,12 +116,12 @@ for Ridx, R in enumerate(r):
         gal_index = T.query_ball_point(c, r=(R**2 + half_deltac**2)**0.5)
 
         # filter by cylinder using norm_coods()
-        gal_index = [np.array(gal_index[k])[norm_coods(gal_coods.ix[gal_index[k]].values, c.ix[k + j*n].values, R, half_deltac, L)] for k in range(n)]
+        gal_index = [np.array(gal_index[k])[norm_coods(gal_coods.ix[gal_index[k]].values, c.ix[k + j*n].values, R, half_deltac, L)] for k in range(len(c))]
 
         # # save start and end indices
         start_index = (j*n)
 
-        dgal[Ridx, start_index:(start_index+n)] = (np.array([len(x) for x in gal_index]) - vol_avg) / vol_avg
+        dgal[Ridx, start_index:(start_index+len(c))] = (np.array([len(x) for x in gal_index]) - vol_avg) / vol_avg
 
         for i in range(len(gal_index)):
 
@@ -133,7 +134,8 @@ for Ridx, R in enumerate(r):
                 for k, (q, no) in enumerate(cluster_ids.items()):
                     cluster_gals = gals.ix[gals['z0_centralId'] == q]
                     cstats[k,0] = float(no) / len(cluster_gals)  # completeness
-                    cstats[k,1] = float(no) / len(gal_index)  # purity
+                    cstats[k,1] = float(no) / len(gal_index[i])  # purity
+
 
                 # find id of max completeness and purity in cstats array
                 max_completeness = np.where(cstats[:,0] == cstats[:,0].max())[0]
@@ -172,35 +174,38 @@ for Ridx, R in enumerate(r):
                     max_purity = max_completeness
 
                 # save completeness and purity values
+                if cstats[max_completeness[0], 0] > 1.:
+                    print "ERROR!"
+                    break
+                if cstats[max_completeness[0], 1] > 1.:
+                    print "ERROR!"
+                    break
+
                 completeness[Ridx, start_index+i] = cstats[max_completeness[0], 0]
                 purity[Ridx, start_index+i] = cstats[max_purity[0], 1]
 
-                # label candidates
-                if cstats[max_completeness[0], 0] >= clim: # if completeness high
-                    if cstats[max_purity[0], 1] >= plim: # ..and purity high
-                        label[Ridx, start_index+i] =  1 # 'protocluster'
-                    else: # ..and purity low
-                        label[Ridx, start_index+i] = 2 # 'pc in field'
-                else: # if completeness low
-                    if cstats[max_purity[0], 1] >= plim:  # ..and purity high
-                        label[Ridx, start_index+i] = 3 # 'part protocluster'
-                    else: # ..and purity low
-                        label[Ridx, start_index+i] = 0 # 'field'
+#                # label candidates
+#                if cstats[max_completeness[0], 0] >= clim: # if completeness high
+#                    if cstats[max_purity[0], 1] >= plim: # ..and purity high
+#                        label[Ridx, start_index+i] =  1 # 'protocluster'
+#                    else: # ..and purity low
+#                        label[Ridx, start_index+i] = 2 # 'pc in field'
+#                else: # if completeness low
+#                    if cstats[max_purity[0], 1] >= plim:  # ..and purity high
+#                        label[Ridx, start_index+i] = 3 # 'part protocluster'
+#                    else: # ..and purity low
+#                        label[Ridx, start_index+i] = 0 # 'field'
 
             else:
                 completeness[Ridx, start_index+i] = 0.
                 purity[Ridx, start_index+i] = 0.
-                label[Ridx, start_index+i] = 0 # 'field'
+#                label[Ridx, start_index+i] = 0 # 'field'
 
-
-
-for Ridx, R in enumerate(r):
 
     print "Saving data (R:",R,")..."
 
-    df = pd.DataFrame(np.array([label[Ridx], dgal[Ridx], completeness[Ridx], purity[Ridx]]).T,
-                  columns = ['label_%s'%R, 'dgal_%s'%R,
-                             'completeness_%s'%R, 'purity_%s'%R])
+    df = pd.DataFrame(np.array([dgal[Ridx], completeness[Ridx], purity[Ridx]]).T,
+                  columns = ['dgal_%s'%R, 'completeness_%s'%R, 'purity_%s'%R])
 
     df.to_csv('%s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R, location_str), index=False)
 
