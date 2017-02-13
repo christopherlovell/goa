@@ -43,10 +43,12 @@ L = 480.279   # box side length
 z = float(redshift_str.replace('p','.'))
 dimensions = np.array([L, L, L])
 
-#directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
-directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
+directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
+# directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
 #directory = '~/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
-out_directory = '/home/chris/sussex/protoclusters/data/r200'
+
+out_directory = '/lustre/scratch/astro/cl478/protoclusters_data'
+#out_directory = '/home/chris/sussex/protoclusters/data/r200'
 #out_directory = '~/protoclusters/data/r200'
 
 print "dir:", directory
@@ -81,16 +83,8 @@ T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
-# clim = 0.4
-# plim = 0.4
-
 r = [2.5, 5, 7.5, 10, 15]
 half_deltac = [5, 10, 15]
-
-# label = np.zeros((len(r), len(coods)))
-# dgal = np.zeros((len(r), len(coods)))
-# completeness = np.zeros((len(r), len(coods)))
-# purity = np.zeros((len(r), len(coods)))
 
 out_stats = np.zeros((len(r), len(half_deltac), len(coods), 3))
 
