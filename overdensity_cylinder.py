@@ -6,6 +6,8 @@ Calculate galaxy overdensity
 
 import sys
 
+import pickle as pcl
+
 import numpy as np
 import pandas as pd
 
@@ -42,10 +44,10 @@ z = float(redshift_str.replace('p','.'))
 dimensions = np.array([L, L, L])
 
 #directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
-#directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
-directory = '~/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
-#out_directory = '~/sussex/protoclusters/data/r200'
-out_directory = '~/protoclusters/data/r200'
+directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
+#directory = '~/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
+out_directory = '/home/chris/sussex/protoclusters/data/r200'
+#out_directory = '~/protoclusters/data/r200'
 
 print "dir:", directory
 sys.stdout.flush()
@@ -79,136 +81,122 @@ T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
-clim = 0.4
-plim = 0.4
+# clim = 0.4
+# plim = 0.4
 
 r = [2.5, 5, 7.5, 10, 15]
 half_deltac = [5, 10, 15]
 
 # label = np.zeros((len(r), len(coods)))
-dgal = np.zeros((len(r), len(coods)))
-completeness = np.zeros((len(r), len(coods)))
-purity = np.zeros((len(r), len(coods)))
+# dgal = np.zeros((len(r), len(coods)))
+# completeness = np.zeros((len(r), len(coods)))
+# purity = np.zeros((len(r), len(coods)))
+
+out_stats = np.zeros((len(r), len(half_deltac), len(coods), 3))
 
 print "Counting galaxies... (", len(coods),")"
 sys.stdout.flush()
 
  # loop through radii (r)
-for Ridx, R in enumerate(r[::-1]):
+for Ridx, R in enumerate(r):
 
-    print "R:",R,"\n ---------------------------------"    
+    for idxc, dc in enumerate(half_deltac):
 
-    # set deltaz equal to radius (can optionally change deltaz)
-    half_deltac = R
+        print "R:",R,"| half_deltac:",dc
 
-    vol_avg = np.pi * R**2 * half_deltac * avg  # average overdensity in chosen volume
+        # set deltaz equal to radius (can optionally change deltaz)
+        # half_deltac = R
 
-    # can't calculate distances all in one go, so need to chunk
-    for j,c in coods.groupby(np.arange(len(coods))//n):
+        vol_avg = np.pi * R**2 * dc * avg  # average overdensity in chosen volume
 
-        # print progress
-        if j % 100 == 0:
-            print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
+        # can't calculate distances all in one go, so need to chunk
+        for j,c in coods.groupby(np.arange(len(coods))//n):
 
-
-        # find all galaxies within a sphere of radius the max extent of the cylinder
-        # deltac = 2 * max(r) # TEMP while deltac not changing
-        gal_index = T.query_ball_point(c, r=(R**2 + half_deltac**2)**0.5)
-
-        # filter by cylinder using norm_coods()
-        gal_index = [np.array(gal_index[k])[norm_coods(gal_coods.ix[gal_index[k]].values, c.ix[k + j*n].values, R, half_deltac, L)] for k in range(len(c))]
-
-        # # save start and end indices
-        start_index = (j*n)
-
-        dgal[Ridx, start_index:(start_index+len(c))] = (np.array([len(x) for x in gal_index]) - vol_avg) / vol_avg
-
-        for i in range(len(gal_index)):
-
-            cluster_ids = Counter(gals.ix[gal_index[i]][gals.ix[gal_index[i]]['z0_central_mcrit200'] > 1e4]['z0_centralId'])
-
-            if len(cluster_ids) > 0:
-
-                cstats = np.zeros((len(cluster_ids), 2))
-
-                for k, (q, no) in enumerate(cluster_ids.items()):
-                    cluster_gals = gals.ix[gals['z0_centralId'] == q]
-                    cstats[k,0] = float(no) / len(cluster_gals)  # completeness
-                    cstats[k,1] = float(no) / len(gal_index[i])  # purity
+            # print progress
+            if j % 100 == 0:
+                print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
 
 
-                # find id of max completeness and purity in cstats array
-                max_completeness = np.where(cstats[:,0] == cstats[:,0].max())[0]
-                max_purity = np.where(cstats[:,1] == cstats[:,1].max())[0]
+            # find all galaxies within a sphere of radius the max extent of the cylinder
+            # deltac = 2 * max(r) # TEMP while deltac not changing
+            gal_index = T.query_ball_point(c, r=(R**2 + dc**2)**0.5)
 
-                # sometimes multiple clusters can have same completeness or purity in a single candidate
-                # - use the cluster with the highest complementary completeness/purity
-                if len(max_completeness) > 1:
+            # filter by cylinder using norm_coods()
+            gal_index = [np.array(gal_index[k])[norm_coods(gal_coods.ix[gal_index[k]].values, c.ix[k + j*n].values, R, dc, L)] for k in range(len(c))]
 
-                    # get matches between completeness and purity
-                    matches = [x in max_purity for x in max_completeness]
+            # # save start and end indices
+            start_index = (j*n)
 
-                    if np.sum(matches) > 0:
-                        # just use the first one
-                        max_completeness = [np.where(matches)[0][0]]
-                        max_purity = [np.where(matches)[0][0]]
-                    else:
-                        max_completeness = [max_completeness[np.argmax(cstats[max_completeness, 1])]]
+            out_stats[Ridx, idxc, start_index:(start_index+len(c)), 0] = (np.array([len(x) for x in gal_index]) - vol_avg) / vol_avg
 
-                if len(max_purity) > 1:
+            for i in range(len(gal_index)):
 
-                    matches = [x in max_completeness for x in max_purity]
+                cluster_ids = Counter(gals.ix[gal_index[i]][gals.ix[gal_index[i]]['z0_central_mcrit200'] > 1e4]['z0_centralId'])
 
-                    if np.sum(matches) > 0:
-                        max_completeness = [np.where(matches)[0][0]]
-                        max_purity = [np.where(matches)[0][0]]
+                if len(cluster_ids) > 0:
 
-                    else:
-                        max_purity = [max_purity[np.argmax(cstats[max_completeness, 0])]]
+                    cstats = np.zeros((len(cluster_ids), 2))
+
+                    for k, (q, no) in enumerate(cluster_ids.items()):
+                        cluster_gals = gals.ix[gals['z0_centralId'] == q]
+                        cstats[k,0] = float(no) / len(cluster_gals)  # completeness
+                        cstats[k,1] = float(no) / len(gal_index[i])  # purity
 
 
-                # sometimes the cluster with the highest completeness does not have the highest purity, or vice versa
-                # - use the cluster with the highest combined purity/completeness added in quadrature
-                if max_completeness[0] != max_purity[0]:
-                    max_completeness = [np.argmax([pow(np.sum(x**2), 0.5) for x in cstats])]
-                    max_purity = max_completeness
+                    # find id of max completeness and purity in cstats array
+                    max_completeness = np.where(cstats[:,0] == cstats[:,0].max())[0]
+                    max_purity = np.where(cstats[:,1] == cstats[:,1].max())[0]
 
-                # save completeness and purity values
-                if cstats[max_completeness[0], 0] > 1.:
-                    print "ERROR!"
-                    break
-                if cstats[max_completeness[0], 1] > 1.:
-                    print "ERROR!"
-                    break
+                    # sometimes multiple clusters can have same completeness or purity in a single candidate
+                    # - use the cluster with the highest complementary completeness/purity
+                    if len(max_completeness) > 1:
 
-                completeness[Ridx, start_index+i] = cstats[max_completeness[0], 0]
-                purity[Ridx, start_index+i] = cstats[max_purity[0], 1]
+                        # get matches between completeness and purity
+                        matches = [x in max_purity for x in max_completeness]
 
-#                # label candidates
-#                if cstats[max_completeness[0], 0] >= clim: # if completeness high
-#                    if cstats[max_purity[0], 1] >= plim: # ..and purity high
-#                        label[Ridx, start_index+i] =  1 # 'protocluster'
-#                    else: # ..and purity low
-#                        label[Ridx, start_index+i] = 2 # 'pc in field'
-#                else: # if completeness low
-#                    if cstats[max_purity[0], 1] >= plim:  # ..and purity high
-#                        label[Ridx, start_index+i] = 3 # 'part protocluster'
-#                    else: # ..and purity low
-#                        label[Ridx, start_index+i] = 0 # 'field'
+                        if np.sum(matches) > 0:
+                            # just use the first one
+                            max_completeness = [np.where(matches)[0][0]]
+                            max_purity = [np.where(matches)[0][0]]
+                        else:
+                            max_completeness = [max_completeness[np.argmax(cstats[max_completeness, 1])]]
 
-            else:
-                completeness[Ridx, start_index+i] = 0.
-                purity[Ridx, start_index+i] = 0.
-#                label[Ridx, start_index+i] = 0 # 'field'
+                    if len(max_purity) > 1:
+
+                        matches = [x in max_completeness for x in max_purity]
+
+                        if np.sum(matches) > 0:
+                            max_completeness = [np.where(matches)[0][0]]
+                            max_purity = [np.where(matches)[0][0]]
+
+                        else:
+                            max_purity = [max_purity[np.argmax(cstats[max_completeness, 0])]]
 
 
-    print "Saving data (R:",R,")..."
+                    # sometimes the cluster with the highest completeness does not have the highest purity, or vice versa
+                    # - use the cluster with the highest combined purity/completeness added in quadrature
+                    if max_completeness[0] != max_purity[0]:
+                        max_completeness = [np.argmax([pow(np.sum(x**2), 0.5) for x in cstats])]
+                        max_purity = max_completeness
 
-    df = pd.DataFrame(np.array([dgal[Ridx], completeness[Ridx], purity[Ridx]]).T,
-                  columns = ['dgal_%s'%R, 'completeness_%s'%R, 'purity_%s'%R])
+                    # save completeness and purity values
+                    out_stats[Ridx, idxc, start_index+i, 1] = cstats[max_completeness[0], 0]
+                    out_stats[Ridx, idxc, start_index+i, 2] = cstats[max_purity[0], 1]
 
-    df.to_csv('%s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R, location_str), index=False)
+                else:
+                    out_stats[Ridx, idxc, start_index+i, 1] = 0.
+                    out_stats[Ridx, idxc, start_index+i, 2] = 0.
 
-    print 'Saved to %s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R, location_str)
+
+print "Saving data..."
+
+pcl.dump(out_stats, open('%s/dgal_%s_%s_%s.pcl' % (out_directory, selection_str, redshift_str, location_str), 'wb'))
+
+# df = pd.DataFrame(out_stats,
+#               columns = ['dgal_%s'%R, 'completeness_%s'%R, 'purity_%s'%R])
+#
+# df.to_csv('%s/dgal_%s_%s_r%s_%s.csv' % (out_directory, selection_str, redshift_str, R, location_str), index=False)
+
+print 'Saved to %s/dgal_%s_%s_%s.pcl' % (out_directory, selection_str, redshift_str, location_str)
 
 print "Complete!"
