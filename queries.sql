@@ -35,7 +35,7 @@
 
 
 
-wget --http-user=***** --http-passwd=******* "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
+wget --http-user=sussex --http-passwd=G787739L "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
 select
   zn.galaxyId as zn_galaxyId,
   zn.haloId as zn_haloId,
@@ -120,6 +120,7 @@ from
     and prog.snapnum = 13) z0
 
     on zn.haloId = z0.zn_haloId
+order by zn.galaxyId
 " -O henriques2015a_z8p22_mstar_r200.csv
 
 "
