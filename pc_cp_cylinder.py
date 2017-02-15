@@ -17,13 +17,30 @@ import sys
 # https://github.com/patvarilly/periodic_kdtree
 from periodic_kdtree import PeriodicCKDTree
 
+# custom cython coordinate filter
+from norm_cood import norm_coods
+
 def cluster_stats(gals, L=500):
+    """
+    Calculate overdensity, completeness and purity of the protocluster
+    population in volumes with varying raddi and delta-z.
 
-    clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
+    NOTE: need to convert z-coordinate to redshift space *before* calling
 
-    # if len(cluster_ids) == 0:
-    #     print "Selecting clusters..."
-    #     cluster_ids = pd.unique(gals[gals['z0_central_mcrit200'] > 1e4]['z0_centralId'])
+    Args:
+        - gals: dataframe of galaxy properties
+        - L: comoving side length of simulation
+    """
+
+    # r = [2.5, 5., 7.5, 10., 15.]
+    r = [7.5]
+    # deltaz = [2.5, 5., 7.5, 10., 15.]
+    deltaz = [7.5]
+
+    avg = float(gals.shape[0]) / L**3
+
+    # filter by *group* masses
+    clusters = gals[gals['z0_central_mcrit200'] > 1e3].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
 
     print "N Clusters: ", len(clusters)
 
@@ -34,9 +51,12 @@ def cluster_stats(gals, L=500):
     print "Building periodic KDtree..."
     T = PeriodicCKDTree(dimensions, gals[['zn_x','zn_y','zn_z']])
 
+    cstats = np.zeros((len(clusters), len(deltaz), len(r), 3))
+
     print "Calculating cluster properties..."
     for i, cid in enumerate(clusters['z0_centralId']):
-        # sys.stdout.flush()
+
+        no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
 
         # subset protocluster galaxy coordinates
         coods = gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']].copy().reset_index(drop=True)
@@ -57,40 +77,31 @@ def cluster_stats(gals, L=500):
 
         center = np.mean(coods)  # find protocluster center
 
-        no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
+        # get all galaxies in sphere of radii the max extent of the largest cylinder
+        gal_index = T.query_ball_point(center, r=(max(r)**2 + max(deltaz)**2)**0.5)
 
-        completeness = []
-        purity = []
-        dgal = []
+        for j, dz in enumerate(deltaz):
 
-        #gal_index = T.query_ball_point(center, r=30) # find galaxies in sphere
+            for k, R in enumerate(r):
 
-        # calculate statistics over R
-        for R in [float(x)/2 for x in range(61)[1:]]:
+                # filter by cylinder using norm_coods()
+                gal_index_temp = np.array(gal_index)[norm_coods(gals.ix[gal_index][['zn_x','zn_y','zn_z']].values, center.values, R, dz, L)]
 
-            gal_index = T.query_ball_point(center, r=R)
+                all_gals_in_R = len(gal_index_temp)
+                pcs_in_R = float(sum(gals.ix[gal_index_temp]['z0_centralId'] == cid))
+                cstats[i,j,k,1] = pcs_in_R / no_pcs  # completeness
 
-            all_gals_in_R = len(gal_index)
-            pcs_in_R = float(sum(gals.ix[gal_index]['z0_centralId'] == cid))
-            completeness.append(pcs_in_R / no_pcs)
+                avg_dgal = avg * np.pi * R**2 * dz
+                cstats[i,j,k,0] = (all_gals_in_R - avg_dgal) / avg_dgal  # dgal
 
-            avg_dgal = float(gals.shape[0]) / L**3 * 4./3 * np.pi * R**3
-            dgal.append((all_gals_in_R - avg_dgal) / avg_dgal)
-
-            if all_gals_in_R == 0:
-                purity.append(1)
-            else:
-                purity.append(pcs_in_R / all_gals_in_R)
+                # purity
+                if all_gals_in_R == 0:
+                    cstats[i,j,k,2] = 1
+                else:
+                    cstats[i,j,k,2] = pcs_in_R / all_gals_in_R
 
 
-        cluster_stats[i] = np.array([completeness, purity, dgal])
-
-
-    # print "Calculating percentiles..."
-    # completeness_percentiles = np.array([np.percentile(y, [84,16]) for y in np.vstack([x[0] for x in cluster_stats]).T])
-    # purity_percentiles = np.array([np.percentile(y, [84,16]) for y in np.vstack([x[1] for x in cluster_stats]).T])
-
-    return {'cstats': np.array(cluster_stats), 'clusters': clusters}
+    return {'cstats': cstats, 'clusters': clusters}
 
 
 if __name__ == "__main__":
@@ -102,8 +113,6 @@ if __name__ == "__main__":
     print "Calculating stats..."
     sys.stdout.flush()
     cstats = cluster_stats(gals_z6p42_sfr, L = 480.279)
-
-    # print cstats
 
     plt.plot(range(31), np.ma.masked_where(np.vstack([x[1] for x in cstats['cstats'] if x[1]])==0,
                     np.vstack([x[1] for x in cstats['cstats'] if x[1]])).mean(axis=0), c=cmap[4], label='6.42')

@@ -83,8 +83,8 @@ T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
-r = [2.5, 5, 7.5, 10, 15]
-half_deltac = [5, 10, 15]
+r = [10]
+half_deltac = [10]
 
 out_stats = np.zeros((len(r), len(half_deltac), len(coods), 3))
 
