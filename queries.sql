@@ -35,7 +35,7 @@
 
 
 
-wget --http-user=***** --http-passwd=******* "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
+wget --http-user=sussex --http-passwd=G787739L "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
 select
   zn.galaxyId as zn_galaxyId,
   zn.haloId as zn_haloId,

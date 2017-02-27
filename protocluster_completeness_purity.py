@@ -39,6 +39,8 @@ def cluster_stats(gals, L=500):
     for i, cid in enumerate(clusters['z0_centralId']):
         # sys.stdout.flush()
 
+        no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
+
         # subset protocluster galaxy coordinates
         coods = gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']].copy().reset_index(drop=True)
 
@@ -56,8 +58,6 @@ def cluster_stats(gals, L=500):
             coods.loc[coods['zn_z'] < -L/2, 'zn_z'] += L# gals[(gals['z0_centralId'] == cid) & (coods['zn_z'] < -L/2)]['zn_z']
 
         center = np.median(coods, axis=0)  # find protocluster center
-
-        no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
 
         completeness = []
         purity = []
