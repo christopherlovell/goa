@@ -127,6 +127,8 @@ for j in ${!selection[*]}; do
         and prog.snapnum = ${snapnum[$index]}) z0
 
         on zn.haloId = z0.zn_haloId
+
+        order by zn.galaxyId
     " -O data/r200/henriques2015a_z${z[$index]}_${selection[$j]}_r200.csv -q
 
   done

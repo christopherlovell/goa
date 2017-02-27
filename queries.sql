@@ -120,6 +120,7 @@ from
     and prog.snapnum = 13) z0
 
     on zn.haloId = z0.zn_haloId
+order by zn.galaxyId
 " -O henriques2015a_z8p22_mstar_r200.csv
 
 "
