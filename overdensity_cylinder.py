@@ -43,12 +43,12 @@ L = 480.279   # box side length
 z = float(redshift_str.replace('p','.'))
 dimensions = np.array([L, L, L])
 
-directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
-# directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
+# directory = '/lustre/scratch/astro/cl478/protoclusters_data/henriques2015a_z%s_%s.csv' % (redshift_str, selection_str)
+directory = '~/sussex/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
 #directory = '~/protoclusters/data/r200/henriques2015a_z%s_%s_r200.csv' % (redshift_str, selection_str)
 
-out_directory = '/lustre/scratch/astro/cl478/protoclusters_data'
-#out_directory = '/home/chris/sussex/protoclusters/data/r200'
+# out_directory = '/lustre/scratch/astro/cl478/protoclusters_data'
+out_directory = '/home/chris/sussex/protoclusters/data/r200'
 #out_directory = '~/protoclusters/data/r200'
 
 print "dir:", directory
@@ -83,8 +83,8 @@ T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
-r = [10]
-half_deltac = [10]
+r = [5, 10, 15]
+half_deltac = [5, 10, 15]
 
 out_stats = np.zeros((len(r), len(half_deltac), len(coods), 3))
 
@@ -101,7 +101,7 @@ for Ridx, R in enumerate(r):
         # set deltaz equal to radius (can optionally change deltaz)
         # half_deltac = R
 
-        vol_avg = np.pi * R**2 * dc * avg  # average overdensity in chosen volume
+        vol_avg = np.pi * R**2 * (2*dc) * avg  # average overdensity in chosen volume
 
         # can't calculate distances all in one go, so need to chunk
         for j,c in coods.groupby(np.arange(len(coods))//n):
