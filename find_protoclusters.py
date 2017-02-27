@@ -12,15 +12,13 @@ import pickle as pcl
 import hightolowz
 
 
+# redshift = '6p42'
 redshift = sys.argv[1]
+# selection = 'mstar9'
 selection = sys.argv[2]
 
-print redshift, selection
+print "z:", redshift, ", selection:", selection
 sys.stdout.flush()
-
-# redshift = '6p42'
-# selection = 'mstar9'
-
 
 directory = '/lustre/scratch/astro/cl478/protoclusters_data'
 
@@ -60,14 +58,15 @@ for R in [20,12.5,7.5,5]:
     dgal = pd.DataFrame({'index': np.argsort(gals['delta_gal_%s' % str(R)])[::-1].astype(int),
                          'dgal': np.sort(gals['delta_gal_%s' % str(R)])[::-1]})
     
-    # print to screen (same lines)
-    # import curses
-    # stdscr = curses.initscr()
-    # curses.noecho()
-    #curses.cbreak()
-    
     max_dgal = 1    
-    while (sum(~ignore_dgal) != len(ignore_dgal)) | (max_dgal > 0.):
+    i = 0
+    while ((sum(~ignore_dgal) != len(ignore_dgal)) & (max_dgal > 0.) & (i < 10000)):
+
+        i += 1
+
+        sys.stdout.flush()
+        if i % 20 == 0:
+            print "R: ", R, " ", i
     
         # filter dgal by all those points not within 2*R of other protoclusters
         # return the highest dgal available
@@ -80,12 +79,12 @@ for R in [20,12.5,7.5,5]:
     
     
         if sum((dist < R) & (~ignore_gals)) > 1:
-            #print "\rSelection regions contains previously selected galaxies. Skipping."
+            # Selection regions contains previously selected galaxies. Skipping.
             ignore_array[max_index] = False
     
         else:
-            #print "\rIsolated region. Saving."
-            # update ignore array
+            # Isolated region. Saving. 
+            # Update ignore array
             ignore_gals[np.array(dist < R)] = False
             ignore_dgal[np.array(dist < 2*R)] = False
     
@@ -104,10 +103,6 @@ for R in [20,12.5,7.5,5]:
         # print round(float(sum(~ignore_gals)) / len(ignore_gals),4) * 100
         # sys.stdout.flush()
     
-    
-    # curses.echo()
-    # curses.nocbreak()
-    # curses.endwin()
     
     pcl.dump([protoclusters, pc_members], open('data/planck1/protoclusters_%s_%s_R%s.p' % (redshift, selection, str(R)), 'wb'))
 
