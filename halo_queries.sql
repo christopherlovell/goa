@@ -112,7 +112,7 @@ from
   from
     MPAHaloTrees..MRscPlanck1
   where
-    snapnum = 11
+    snapnum = 30
     and haloID = firstHaloInFOFgroupId) zn,
 
   (select
@@ -129,3 +129,56 @@ from
 
  where zn.haloId > z0.haloId
  and zn.haloId <= z0.lastProgenitorId
+
+
+## find all protocluster halos at a given redshift
+
+wget --http-user=sussex --http-passwd=G787739L "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
+select
+   prog.haloId as zn_haloId,
+   z0_join.halos_haloId as z0_haloId,
+   z0_join.halos_x as z0_x, z0_join.halos_y as z0_y, z0_join.halos_z as z0_z,
+   z0_join.halos_m_crit200 as z0_mcrit200,
+   z0_join.cen_x as z0_central_x, z0_join.cen_y as z0_central_y, z0_join.cen_z as z0_central_z,
+   z0_join.cen_haloId as z0_centralId,
+   z0_join.cen_m_crit200 as z0_central_mcrit200,
+   z0_join.cen_r_crit200 as z0_central_rcrit200
+   from
+      MPAHaloTrees..MRscPlanck1 prog,
+      (select
+      cen.haloId as cen_haloId,
+      cen.x as cen_x, cen.y as cen_y, cen.z as cen_z,
+      cen.m_crit200 as cen_m_crit200, cen.r_crit200 as cen_r_crit200,
+      halos.x as halos_x, halos.y as halos_y, halos.z as halos_z,
+      halos.haloId as halos_haloId,
+      halos.m_crit200 as halos_m_crit200,
+      halos.lastProgenitorId as halos_lastProgenitorId
+
+      from
+
+        (select
+        m_crit200, haloId, x, y, z,
+        POWER((m_crit200 * 3.)/(200 * 12.7 * 4 * Pi()), 1./3) * 0.67 as r_crit200
+        from mpahalotrees..mrscplanck1
+        where snapnum = 58
+        and firstHaloInFOFgroupId = haloId
+        and m_crit200 > 1e4) cen,
+
+        (select
+        x, y, z, haloId, m_crit200, lastProgenitorId, firstHaloInFOFgroupId
+        from mpahalotrees..mrscplanck1
+        where snapnum = 58) halos
+
+      where
+      cen.haloId = halos.firstHaloInFOFgroupId
+      and halos.x between cen.x - cen.r_crit200 and cen.x %2B cen.r_crit200
+      and halos.y between cen.y - cen.r_crit200 and cen.y %2B cen.r_crit200
+      and halos.z between cen.z - cen.r_crit200 and cen.z %2B cen.r_crit200
+      and POWER(POWER(halos.x - cen.x, 2) %2B POWER(halos.y - cen.y, 2) %2B POWER(halos.z - cen.z, 2), 0.5) <= cen.r_crit200) z0_join
+
+    where
+    prog.haloId between z0_join.halos_haloId and z0_join.halos_lastProgenitorId
+    and prog.snapnum = 30
+" -O protocluster_halos_r200_z2p07.csv
+
+"
