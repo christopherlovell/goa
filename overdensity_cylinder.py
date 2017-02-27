@@ -57,6 +57,13 @@ sys.stdout.flush()
 print "Reading galaxy data..."
 gals = pd.read_csv(directory, skiprows=122, skipfooter=1, engine='python')
 
+# print "filtering by stellar mass..."
+# print gals.shape
+# selection_str += str(10)
+# print selection_str
+# gals = gals[gals['zn_stellarMass'] > 1].reset_index(drop=True)
+# print gals.shape
+
 print "Filling in NaN values..."
 gals.ix[np.isnan(gals['z0_haloId']), 'z0_haloId'] = -1
 gals.ix[np.isnan(gals['z0_centralId']), 'z0_centralId'] = -1
@@ -83,8 +90,8 @@ T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
-r = [5, 10, 15]
-half_deltac = [5, 10, 15]
+r = [5, 7.5, 10, 15]
+half_deltac = [5, 7.5, 10, 15]
 
 out_stats = np.zeros((len(r), len(half_deltac), len(coods), 3))
 
@@ -97,6 +104,7 @@ for Ridx, R in enumerate(r):
     for idxc, dc in enumerate(half_deltac):
 
         print "R:",R,"| half_deltac:",dc
+        sys.stdout.flush()
 
         # set deltaz equal to radius (can optionally change deltaz)
         # half_deltac = R
@@ -109,6 +117,7 @@ for Ridx, R in enumerate(r):
             # print progress
             if j % 100 == 0:
                 print round(float(c.shape[0] * (j+1)) / coods.shape[0] * 100, 2), '%'
+                sys.stdout.flush()
 
 
             # find all galaxies within a sphere of radius the max extent of the cylinder
