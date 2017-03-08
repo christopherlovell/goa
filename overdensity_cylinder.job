@@ -6,6 +6,23 @@
 echo "Running job script"
 module load python
 
+
+# echo "stellarMass 2p07 1"; python overdensity_cylinder.py stellarMass 2p07 1 
+# echo "sfr 3p95 1 r7"; python overdensity_cylinder.py sfr 3p95 1 7                               # default 
+# echo "sfr 3p95 1 r4"; python overdensity_cylinder.py sfr 3p95 1 4                             # smaller aperture
+# echo "sfr 3p95 1 r10"; python overdensity_cylinder.py sfr 3p95 1 10                           # larger aperture
+# 
+# echo "stellarMass 3p95 1 r7"; python overdensity_cylinder.py stellarMass 3p95 1 7            # stellar mass
+echo "stellarMass10 3p95 1 r7"; python overdensity_cylinder.py stellarMass 3p95 1 7          # stellar mass (10)
+# 
+# echo "sfr 2p07 1 r7"; python overdensity_cylinder.py sfr 2p07 1 7                             # lowest redshift
+# echo "sfr 3p10 1 r7"; python overdensity_cylinder.py sfr 3p10 1 7                             # low redshift
+# echo "sfr 5p92 1 r7"; python overdensity_cylinder.py sfr 5p92 1 7                             # high redshift
+
+
+
+
+
 # python overdensity_cylinder.py sfr 2p07 1
 # python overdensity_cylinder.py sfr 3p10 1
 # python overdensity_cylinder.py sfr 3p95 1
@@ -26,8 +43,6 @@ module load python
 # python overdensity_cylinder.py mstar 8p93 1
 # python overdensity_cylinder.py mstar 9p72 1
 
-
-echo "sfr 3p95 1"; python overdensity_cylinder.py sfr 3p95 1 
 
 # echo "sfr 2p07 1"; python overdensity_cylinder.py sfr 2p07 1 
 # echo "sfr 3p10 1"; python overdensity_cylinder.py sfr 3p10 1 
