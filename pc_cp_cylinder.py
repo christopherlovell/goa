@@ -33,9 +33,9 @@ def cluster_stats(gals, L=500):
     """
 
     # r = [2.5, 5., 7.5, 10., 15.]
-    r = [7.5]
+    r = [2.5,7]
     # deltaz = [2.5, 5., 7.5, 10., 15.]
-    deltaz = [7.5]
+    deltaz = [2.5,7]
 
     avg = float(gals.shape[0]) / L**3
 

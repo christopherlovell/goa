@@ -9,6 +9,9 @@ from palettable.tableau import GreenOrange_12
 
 cmap = GreenOrange_12.hex_colors
 
+# TODO: check this is the exact cosmology...
+from astropy.cosmology import Planck13
+
 import pandas as pd
 import numpy as np
 
@@ -17,7 +20,7 @@ import sys
 # https://github.com/patvarilly/periodic_kdtree
 from periodic_kdtree import PeriodicCKDTree
 
-def cluster_stats(gals, L=500):
+def cluster_stats(gals, L=500, redshift_distort=False, z=None):
 
     # clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
     clusters = gals[gals['z0_central_mcrit200'] > 1e4].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max().reset_index(level=2, drop=True)
@@ -32,8 +35,19 @@ def cluster_stats(gals, L=500):
 
     dimensions = np.array([L, L, L])
 
+    gal_coods = gals[['zn_x','zn_y','zn_z']].copy()
+    
+    # Convert z-axis to redshift space
+    if redshift_distort:
+        gal_coods['zn_z'] += gals['zn_velZ'] * (1+z) / Planck13.H(z).value
+
+        # fix z coordinate positions if they fall outside the box
+        gal_coods.loc[gal_coods['zn_z'] < 0,'zn_z'] = gal_coods.loc[gal_coods['zn_z'] < 0,'zn_z'] + L
+        gal_coods.loc[gal_coods['zn_z'] > L,'zn_z'] = gal_coods.loc[gal_coods['zn_z'] > L,'zn_z'] - L
+
     print "Building periodic KDtree..."
-    T = PeriodicCKDTree(dimensions, gals[['zn_x','zn_y','zn_z']])
+    # T = PeriodicCKDTree(dimensions, gals[['zn_x','zn_y','zn_z']])
+    T = PeriodicCKDTree(dimensions, gal_coods)
 
     print "Calculating cluster properties..."
     for i, cid in enumerate(clusters['z0_centralId']):
@@ -42,28 +56,27 @@ def cluster_stats(gals, L=500):
         no_pcs = np.sum(gals['z0_centralId'] == cid)  # total number of galaxies in protocluster
 
         # subset protocluster galaxy coordinates
-        coods = gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']].copy().reset_index(drop=True)
+        # coods = gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']].copy().reset_index(drop=True)
+        coods = gal_coods[gals['z0_centralId'] == cid].reset_index(drop=True)
 
         # normalise coordinate values
         if np.abs(coods['zn_x'].max() - coods['zn_x'].min()) > L/2:
             coods['zn_x'] = coods['zn_x'] - L
-            coods.loc[coods['zn_x'] < -L/2, 'zn_x'] += L # gals[(gals['z0_centralId'] == cid) & (coods['zn_x'] < -L/2)]['zn_x']
+            coods.loc[coods['zn_x'] < -L/2, 'zn_x'] += L 
 
         if np.abs(coods['zn_y'].max() - coods['zn_y'].min()) > L/2:
             coods['zn_y'] = coods['zn_y'] - L
-            coods.loc[coods['zn_y'] < -L/2, 'zn_y'] += L # gals[(gals['z0_centralId'] == cid) & (coods['zn_y'] < -L/2)]['zn_y']
+            coods.loc[coods['zn_y'] < -L/2, 'zn_y'] += L 
 
         if np.abs(coods['zn_z'].max() - coods['zn_z'].min()) > L/2:
             coods['zn_z'] = coods['zn_z'] - L
-            coods.loc[coods['zn_z'] < -L/2, 'zn_z'] += L# gals[(gals['z0_centralId'] == cid) & (coods['zn_z'] < -L/2)]['zn_z']
+            coods.loc[coods['zn_z'] < -L/2, 'zn_z'] += L
 
         center = np.median(coods, axis=0)  # find protocluster center
 
         completeness = []
         purity = []
         dgal = []
-
-        #gal_index = T.query_ball_point(center, r=30) # find galaxies in sphere
 
         # calculate statistics over R
         for R in [float(x)/2 for x in range(61)[1:]]:
