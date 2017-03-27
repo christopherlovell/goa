@@ -32,10 +32,8 @@ def cluster_stats(gals, L=500):
         - L: comoving side length of simulation
     """
 
-    # r = [2.5, 5., 7.5, 10., 15.]
-    r = [2.5,7]
-    # deltaz = [2.5, 5., 7.5, 10., 15.]
-    deltaz = [2.5,7]
+    r = [2.5,7]       # [2.5, 5., 7.5, 10., 15.]
+    deltaz = [2.5,7]  # [2.5, 5., 7.5, 10., 15.]
 
     avg = float(gals.shape[0]) / L**3
 
@@ -51,7 +49,8 @@ def cluster_stats(gals, L=500):
     print "Building periodic KDtree..."
     T = PeriodicCKDTree(dimensions, gals[['zn_x','zn_y','zn_z']])
 
-    cstats = np.zeros((len(clusters), len(deltaz), len(r), 3))
+    #cstats = np.zeros((len(clusters), len(deltaz), len(r), 3))
+    cstats = np.zeros((len(clusters), 4))
 
     print "Calculating cluster properties..."
     for i, cid in enumerate(clusters['z0_centralId']):
@@ -80,25 +79,43 @@ def cluster_stats(gals, L=500):
         # get all galaxies in sphere of radii the max extent of the largest cylinder
         gal_index = T.query_ball_point(center, r=(max(r)**2 + max(deltaz)**2)**0.5)
 
-        for j, dz in enumerate(deltaz):
+#        for j, dz in enumerate(deltaz):
+#
+#            for k, R in enumerate(r):
+#
+#                # filter by cylinder using norm_coods()
+#                gal_index_temp = np.array(gal_index)[norm_coods(gals.ix[gal_index][['zn_x','zn_y','zn_z']].values, center.values, R, dz, L)]
+#
+#                all_gals_in_R = len(gal_index_temp)
+#                pcs_in_R = float(sum(gals.ix[gal_index_temp]['z0_centralId'] == cid))
+#                cstats[i,j,k,1] = pcs_in_R / no_pcs  # completeness
+#
+#                avg_dgal = avg * np.pi * R**2 * dz
+#                cstats[i,j,k,0] = (all_gals_in_R - avg_dgal) / avg_dgal  # dgal
+#
+#                # purity
+#                if all_gals_in_R == 0:
+#                    cstats[i,j,k,2] = 1
+#                else:
+#                    cstats[i,j,k,2] = pcs_in_R / all_gals_in_R
 
-            for k, R in enumerate(r):
+        for j, (dz, R) in enumerate(zip([2.5,7],[2.5,7])):
 
-                # filter by cylinder using norm_coods()
-                gal_index_temp = np.array(gal_index)[norm_coods(gals.ix[gal_index][['zn_x','zn_y','zn_z']].values, center.values, R, dz, L)]
+            # filter by cylinder using norm_coods()
+            gal_index_temp = np.array(gal_index)[norm_coods(gals.ix[gal_index][['zn_x','zn_y','zn_z']].values, center.values, R, dz, L)]
 
-                all_gals_in_R = len(gal_index_temp)
-                pcs_in_R = float(sum(gals.ix[gal_index_temp]['z0_centralId'] == cid))
-                cstats[i,j,k,1] = pcs_in_R / no_pcs  # completeness
+            all_gals_in_R = len(gal_index_temp)
+            pcs_in_R = float(sum(gals.ix[gal_index_temp]['z0_centralId'] == cid))
+            cstats[i,2] = pcs_in_R / no_pcs  # completeness
 
-                avg_dgal = avg * np.pi * R**2 * dz
-                cstats[i,j,k,0] = (all_gals_in_R - avg_dgal) / avg_dgal  # dgal
+            avg_dgal = avg * np.pi * R**2 * dz
+            cstats[i,j] = (all_gals_in_R - avg_dgal) / avg_dgal  # dgal
 
-                # purity
-                if all_gals_in_R == 0:
-                    cstats[i,j,k,2] = 1
-                else:
-                    cstats[i,j,k,2] = pcs_in_R / all_gals_in_R
+            # purity
+            if all_gals_in_R == 0:
+                cstats[i,3] = 1
+            else:
+                cstats[i,3] = pcs_in_R / all_gals_in_R
 
 
     return {'cstats': cstats, 'clusters': clusters}
