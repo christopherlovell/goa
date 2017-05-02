@@ -1,12 +1,16 @@
 #!/bin/bash
 
+out_dir=/lustre/scratch/astro/cl478/protoclusters_data/
+username=$1
+password=$2
+
 selection=(
 stellarMass
 sfr
 )
 
 selectionValue=(
-0.1
+0.0673
 1
 )
 
@@ -36,13 +40,12 @@ z=(
 
 echo "starting download..."
 
-
 for j in ${!selection[*]}; do
   for index in ${!snapnum[*]}; do
 
     echo "${snapnum[$index]}, ${z[$index]} | ${selection[$j]} > ${selectionValue[$j]}"
 
-    wget --http-user=sussex --http-passwd=G787739L "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
+    wget --http-user=${username} --http-passwd=${password} "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
     select
       zn.galaxyId as zn_galaxyId,
       zn.haloId as zn_haloId,
@@ -105,7 +108,7 @@ for j in ${!selection[*]}; do
 
             (select
             m_crit200, haloId, x, y, z,
-            POWER((m_crit200 * 3.)/(200 * 27.7619760963 * 4 * Pi()), 1./3) * 0.67 as r_crit200
+            POWER((m_crit200 * 3.)/(200 * 27.7619760963 * 4 * Pi()), 1./3) as r_crit200
             from mpahalotrees..mrscplanck1
             where snapnum = 58
             and firstHaloInFOFgroupId = haloId) cen,
@@ -129,7 +132,7 @@ for j in ${!selection[*]}; do
         on zn.haloId = z0.zn_haloId
 
         order by zn.galaxyId
-    " -O data/r200/henriques2015a_z${z[$index]}_${selection[$j]}_r200.csv -q
+    " -O ${out_dir}henriques2015a_z${z[$index]}_${selection[$j]}_r200.csv -q
 
   done
 done

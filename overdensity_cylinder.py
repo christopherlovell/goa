@@ -28,6 +28,7 @@ selection_str = sys.argv[1]
 redshift_str = sys.argv[2]
 random = bool(int(sys.argv[3]))
 r = [float(sys.argv[4])]
+# half_deltac = [float(sys.argv[5])]
 
 # selection_str = 'sfr'
 # redshift_str = '3p10'
@@ -84,7 +85,6 @@ else:
 # Convert z-axis to redshift space
 gal_coods = gals[['zn_x','zn_y','zn_z']].copy()
 
-# print gal_coods
 print Planck13.H(z)
 gal_coods['zn_z'] += gals['zn_velZ'] * (1+z) / Planck13.H(z).value
 
@@ -103,7 +103,7 @@ T = PeriodicCKDTree(dimensions, gal_coods[['zn_x','zn_y','zn_z']])
 avg = float(gals.shape[0]) / L**3 # average overdensity cMpc^-3
 
 # r = [4, 7, 11]
-half_deltac = [4, 7, 10]
+half_deltac = [5.1, 3.5, 6.2, 3.3, 5.2, 3.8, 4.4, 1.9, 4.7]
 
 # numpy multidiemnsional array 
 # (radii, depth, coordinates, [overdensity, completeness, purity, descendant mass])

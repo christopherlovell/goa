@@ -22,8 +22,6 @@
 # ---- Selection criteria
 # stellar mass: M* > 10e9 Msol | stellarmass > 0.1
 # star formation rate: SFR > 1 Msol yr^-1 | sfr > 1
-# * use 1-e9 stellar mass selection to subset for 10e10 stellar mass galaxies
-
 
 ### Clusters defined within r200
 
@@ -32,7 +30,6 @@
 -- zn.vvir as zn_vvir, zn.vmax as zn_vmax,
 -- zn.xrayLum as zn_xrayLum,
 -- zn.phkey as zn_phKey,
-
 
 
 wget --http-user=sussex --http-passwd=G787739L "http://gavo.mpa-garching.mpg.de/MyMillennium?action=doQuery&SQL=
