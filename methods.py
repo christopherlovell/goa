@@ -1,6 +1,28 @@
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from collections import Counter
+from astropy.cosmology import Planck13
 
-def norm_coods(coods, L):
+
+def get_protoclusters(gals, L, cluster_lim=1.48e4):
+    
+    clusters = gals[gals['z0_central_mcrit200'] > cluster_lim].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
+
+    coods = np.zeros(len(clusters))
+    
+#    for i, cid in enumerate(clusters['z0_centralId']):
+#        gal_coods = norm_coods(np.array(gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']]), L)
+#         coods[i] = np.mean(gal_coods, axis=0)  # find protocluster center
+
+    coods = np.array([np.mean(normalise_coods(np.array(gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']]), L), axis=0) for cid in clusters['z0_centralId']])
+    
+    coods[coods < 0] += L
+        
+    return pd.DataFrame(coods), clusters
+
+
+def normalise_coods(coods, L):
     
     original_coods = coods.copy()
     
@@ -15,7 +37,24 @@ def norm_coods(coods, L):
     
     return coods
 
-from collections import Counter
+
+def z_distort(gals, z, L):
+
+    # Convert z-axis to redshift space
+    gals['zn_z'] += gals['zn_velZ'] * (1+z) / Planck13.H(z).value
+    
+    # fix z coordinate positions if they fall outside the box
+    gals.loc[gals['zn_z'] < 0,'zn_z'] = gals.loc[gals['zn_z'] < 0,'zn_z'] + L
+    gals.loc[gals['zn_z'] > L,'zn_z'] = gals.loc[gals['zn_z'] > L,'zn_z'] - L
+
+    return gals
+
+
+def factor_h(gals, h):
+
+    gals[['z0_central_mcrit200','zn_x','zn_y','zn_z']] /= h
+
+    return gals
 
 
 def bhattacharyya(histA, histB):
@@ -82,9 +121,60 @@ def z0_halo_properties(pcs, pcmems, gals):
     return z0_halos, halo_ratio
 
 
-import matplotlib.pyplot as plt
+def label(stats, clim, plim, mlim=5e4):
+    
+    completeness = stats[:,1]
+    purity = stats[:,2]
+    mass = stats[:,3]
+    
+    labels = ['proto_lomass','proto_himass','part_lomass','part_himass','pfield_lomass','pfield_himass','field']
+    
+    # initialise empty label array
+    labs = np.array([None] * stats.shape[0])
+    
+    # assign labels, split by configuration and descendant mass
+    labs[(completeness >= clim) & (purity >= plim) & (mass < mlim)] = 'proto_lomass'
+    labs[(completeness >= clim) & (purity >= plim) & (mass >= mlim)] = 'proto_himass'
+    labs[(completeness < clim) & (purity >= plim) & (mass >= mlim)] = 'part_lomass'
+    labs[(completeness < clim) & (purity >= plim) & (mass >= mlim)] = 'part_himass'
+    labs[(completeness >= clim) & (purity < plim) & (mass < mlim)] = 'pfield_lomass'
+    labs[(completeness >= clim) & (purity < plim) & (mass >= mlim)] = 'pfield_himass'
+    labs[(completeness < clim) & (purity < plim)] = 'field'
+    
+    return labs, labels
 
-def plotit(ax, selection, rid, zid, axb=None, clim = 0.5, plim = 0.5, N = 12, noplot=False):
+
+def binit(stats, labs, labels, N = 12):
+    """
+    initialise bins and limits, calculate binned statistics
+    
+    Args:
+        stats: completeness and purity statistics 
+        labs: list of labelled regions
+        labels: list of label strings
+    """
+
+    dgal = stats[:,0] + 1
+
+    binLimits = np.linspace(0, int(np.max(dgal)+1), N)
+
+    lower_bin = binLimits[1] + (binLimits[0]-binLimits[1])/2. 
+    upper_bin = binLimits[-1] + (binLimits[0]-binLimits[1])/2.
+
+    bins = np.linspace(lower_bin, upper_bin, N-1)
+    
+    agg = {x: np.histogram(dgal[labs==x], binLimits)[0] for x in labels}  # save counts for each label
+    # agg_total = {x: np.sum(agg[x]) for x in agg}  # find total in each bin
+    agg_total = np.sum([v for k,v in agg.iteritems()],axis=0)
+    
+    fracs = {k: v.astype(float) / agg_total for k,v in agg.iteritems()}
+
+    # fracs = {k: find_fracs(v.astype(float), agg_total) for k,v in agg.iteritems()}  # find fraction of each label
+    
+    return bins, binLimits, agg, agg_total, fracs
+
+
+def plotit(ax, stats, axb=None, clim = 0.5, plim = 0.5, N = 12, mlim=5e4, noplot=False):
     """
     
     Args:
@@ -93,33 +183,22 @@ def plotit(ax, selection, rid, zid, axb=None, clim = 0.5, plim = 0.5, N = 12, no
         rid - id of radius selection in selection object
         zis - if od redshift selection in selection object
         axb - bottom axis object. If None, only plots 
-    
     """
+    
     colors = ['dimgrey','lightseagreen','lightcoral', 'y']
     
-    dgal = selection[rid,zid,:,0] + 1
-    completeness = selection[rid,zid,:,1]
-    purity = selection[rid,zid,:,2]
-    mass = selection[rid,zid,:,3]
+    dgal = stats[:,0] + 1
+    # completeness = stats[:,1]
+    # purity = stats[:,2]
+    mass = stats[:,3]
 
-    # initialise empty label array
-    label = np.zeros(selection.shape[2])    
-    
-    labels = [0,11,12,21,22,31,32]
-    
-    mlim = 5e4
-
-    # assign labels. split by configuration and descendant mass
-    label[(completeness >= clim) & (purity >= plim) & (mass < mlim)] = labels[1]   # protocluster, M < M_lim
-    label[(completeness >= clim) & (purity >= plim) & (mass >= mlim)] = labels[2]  # protocluster, M >= M_lim
-    label[(completeness < clim) & (purity >= plim) & (mass >= mlim)] = labels[3]   # part protocluster, M < M_lim
-    label[(completeness < clim) & (purity >= plim) & (mass >= mlim)] = labels[4]   # part protocluster, M >= M_lim
-    label[(completeness >= clim) & (purity < plim) & (mass < mlim)] = labels[5]    # protocluster+field, M < M_lim
-    label[(completeness >= clim) & (purity < plim) & (mass >= mlim)] = labels[6]   # protocluster+field, M >= M_lim
-    label[(completeness < clim) & (purity < plim)] = labels[0]     # field
+    labels = ['proto_lomass','proto_himass','part_lomass','part_himass','pfield_lomass','pfield_himass','field']
+    labs = label(stats, clim, plim, mlim)
     
     # initialise bins and limits
     binLimits = np.linspace(0, int(np.max(dgal)+1), N)
+    
+    # print binLimits
 
     lower_bin = binLimits[1] + (binLimits[0]-binLimits[1])/2. 
     upper_bin = binLimits[-1] + (binLimits[0]-binLimits[1])/2.
@@ -127,14 +206,9 @@ def plotit(ax, selection, rid, zid, axb=None, clim = 0.5, plim = 0.5, N = 12, no
     bins = np.linspace(lower_bin, upper_bin, N-1)
     
     # save counts for each label
-    agg = [[] for x in labels]
+    agg = {x: np.histogram(dgal[labs==x], binLimits)[0] for x in labels}
     
-    # agg[0] = np.histogram(dgal, binLimits)[0]    # total count
-    
-    for i, x in enumerate(labels):
-        agg[i] = np.histogram(dgal[label==x], binLimits)[0]
-    
-    agg_total = np.sum(agg,axis=0).astype(float)
+    agg_total = np.sum(np.vstack([agg[x] for x in agg]), axis=0).astype(float)
     
     # truncate range to where there are at least a couple of samples
     n_limit = 1
@@ -173,6 +247,7 @@ def plotit(ax, selection, rid, zid, axb=None, clim = 0.5, plim = 0.5, N = 12, no
         DB_himass, BC_himass = bhattacharyya(phiC*np.diff(binLimits), phiB*np.diff(binLimits))
 
         if noplot:
+            print "DB(All), DB(High mass)"
             return round(DB, 2), round(DB_himass, 2)
             exit
         
@@ -211,7 +286,7 @@ def plotit(ax, selection, rid, zid, axb=None, clim = 0.5, plim = 0.5, N = 12, no
         
         axb.set_ylim(0, phiMax + 0.1)
     
-
+    
     width = binLimits[2] - binLimits[1]
     
     plt.rcParams['hatch.color'] = 'black'
