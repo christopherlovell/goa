@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -371,98 +373,71 @@ def plotit(ax, stats, axb=None, clim = 0.5, plim = 0.5, N = 12, mlim=5e4, noplot
     
     colors = ['dimgrey','lightseagreen','lightcoral', 'y']
     
-    dgal = stats[:,0] + 1
-    # completeness = stats[:,1]
-    # purity = stats[:,2]
+    dgal = stats[:,0] + 1    
     mass = stats[:,3]
 
-    labels = ['proto_lomass','proto_himass','part_lomass','part_himass','pfield_lomass','pfield_himass','field']
-    labs = label(stats, clim, plim, mlim)
+    # labels = ['proto_lomass','proto_himass','part_lomass','part_himass','pfield_lomass','pfield_himass','field']
+    labs, labels = label(stats, clim, plim, mlim)
     
-    # initialise bins and limits
-    binLimits = np.linspace(0, int(np.max(dgal)+1), N)
+    binLimits = np.linspace(0, int(np.max(dgal)+1), N)  # initialise bins and limits
     
-    # print binLimits
-
     lower_bin = binLimits[1] + (binLimits[0]-binLimits[1])/2. 
     upper_bin = binLimits[-1] + (binLimits[0]-binLimits[1])/2.
 
     bins = np.linspace(lower_bin, upper_bin, N-1)
     
-    # save counts for each label
-    agg = {x: np.histogram(dgal[labs==x], binLimits)[0] for x in labels}
+    agg = {x: np.histogram(dgal[labs==x], binLimits)[0] for x in labels}  # save counts for each label
     
     agg_total = np.sum(np.vstack([agg[x] for x in agg]), axis=0).astype(float)
     
-    # truncate range to where there are at least a couple of samples
-    n_limit = 1
-    if (np.sum(agg_total < n_limit) > 0):
-        
-        mask = range(0,np.min(np.where(np.sum(agg,axis=0) < n_limit)))
-        
-        bins = bins[mask]
-        binLimits = binLimits[range(0, np.max(mask)+2)]
-        agg_total = agg_total[mask]
-    
-        for i in range(len(labels)):
-            agg[i] = agg[i][mask]
+#    n_limit = 1  # truncate range to where there are at least a couple of samples
+#    if (np.sum(agg_total < n_limit) > 0):
+#        
+#        print agg_total
+#        
+#        mask = range(0,np.min(np.where(agg_total < n_limit)))
+#        
+#        bins = bins[mask]
+#        binLimits = binLimits[range(0, np.max(mask)+2)]
+#        agg_total = agg_total[mask]
+#    
+#        for i in labels:
+#            agg[i] = agg[i][mask]
         
 
-    
-    # probability density function
-    if axb != None:
+    if axb != None:  # probability density function
         
         phiMax = 0.
         
-        mask = (label==11) | (label==12) | (label==21) | (label==22)
+        mask = np.array([labs == lab for lab in ['proto_lomass','proto_himass','part_lomass','part_himass']]).any(axis=0)
         phiA = np.histogram(dgal[mask], binLimits, normed=True)[0]
 
-        mask = (label==0)
+        mask = (labs == 'field')
         phiB = np.histogram(dgal[mask], binLimits, normed=True)[0]
         
         phiMax = np.max(phiA)
         
-        DB, BC = bhattacharyya(phiA*np.diff(binLimits), phiB*np.diff(binLimits))
+        DB, BC = bhattacharyya(phiA*np.diff(binLimits), phiB*np.diff(binLimits))        
         
-        
-        mask = (label==12) | (label==22)
+        mask = np.array([labs == lab for lab in ['proto_himass','part_himass']]).any(axis=0)
         phiC = np.histogram(dgal[mask], binLimits, normed=True)[0]
         
         DB_himass, BC_himass = bhattacharyya(phiC*np.diff(binLimits), phiB*np.diff(binLimits))
 
         if noplot:
-            print "DB(All), DB(High mass)"
-            return round(DB, 2), round(DB_himass, 2)
+            # print "DB(All), DB(High mass)"
+            return round(DB, 3), round(DB_himass, 3)
             exit
         
-        #axb.text(0.6,0.8, '$D_{B} = %s$'%round(DB, 3), transform=axb.transAxes)
-
-        # axb.step(bins, phiA, color=colors[1], linestyle='dashed')
+        
         axb.step(bins, phiB, color=colors[0], linestyle='solid', linewidth=3)
         
-        mask = (label==11)
-        if np.sum(mask) > 5:
-            phi = np.histogram(dgal[mask], binLimits, normed=True)[0]
-            axb.step(bins, phi, color=colors[1], linestyle='solid')
-            phiMax = np.max([phiMax, np.max(phi)])
-        
-        mask = (label==12)
-        if np.sum(mask) > 5:
-            phi = np.histogram(dgal[mask], binLimits, normed=True)[0]
-            axb.step(bins, phi, color=colors[1], linestyle='dashed')
-            phiMax = np.max([phiMax, np.max(phi)])
-        
-        mask = (label==21)
-        if np.sum(mask) > 5:
-            phi = np.histogram(dgal[mask], binLimits, normed=True)[0]
-            axb.step(bins, phi, color=colors[3], linestyle='solid')
-            phiMax = np.max([phiMax, np.max(phi)])
-        
-        mask = (label==22)
-        if np.sum(mask) > 5:
-            phi = np.histogram(dgal[mask], binLimits, normed=True)[0]
-            axb.step(bins, phi, color=colors[3], linestyle='dashed')
-            phiMax = np.max([phiMax, np.max(phi)])
+        for lab, ls, c in zip(labels[:5], ['solid','dashed','solid','dashed'],[1,1,3,3]):
+            mask = (labs==lab)
+            if np.sum(mask) > 1:
+                phi = np.histogram(dgal[mask], binLimits, normed=True)[0]
+                axb.step(bins, phi, color=colors[c], linestyle=ls)
+                phiMax = np.max([phiMax, np.max(phi)])
             
             
         axb.step(bins, phiA, color=colors[1], linestyle='solid', linewidth=3)
@@ -476,26 +451,20 @@ def plotit(ax, stats, axb=None, clim = 0.5, plim = 0.5, N = 12, mlim=5e4, noplot
     plt.rcParams['hatch.color'] = 'black'
     plt.rcParams['hatch.linewidth'] = 0.5
     
-    ax.bar(bins, agg[1] / agg_total, width=width, 
-           label='protocluster ($M<M_{lim}$)', alpha=0.6, color=colors[1])
+    ax.bar(bins, agg['proto_lomass'] / agg_total, width=width, label='protocluster ($M<M_{lim}$)', alpha=0.6, color=colors[1])
     
-    bar = ax.bar(bins, agg[2] / agg_total, width=width, bottom=agg[1] / agg_total,  
-           label='protocluster ($M>M_{lim}$)', alpha=0.8, color=colors[1], hatch='///')
-
-    ax.bar(bins, agg[3] / agg_total, width=width, bottom=np.sum(agg[1:3],axis=0) / agg_total, 
-           label='part of a \n protocluster', alpha=0.6, color=colors[3]) 
+    bar = ax.bar(bins, agg['proto_himass'] / agg_total, width=width, bottom=agg[labels[0]] / agg_total, label='protocluster ($M>M_{lim}$)', alpha=0.8, color=colors[1], hatch='///')
+                 
+    ax.bar(bins, agg['part_lomass'] / agg_total, width=width, bottom=np.sum([agg[key] for key in labels[0:2]],axis=0) / agg_total, label='part of a \n protocluster', alpha=0.6, color=colors[3]) 
     
-    ax.bar(bins, agg[4] / agg_total, width=width, bottom=np.sum(agg[1:4],axis=0) / agg_total,
-           label='part of a \n protocluster', alpha=0.8, color=colors[3], hatch='///') 
+    ax.bar(bins, agg['part_himass'] / agg_total, width=width, bottom=np.sum([agg[key] for key in labels[0:3]],axis=0) / agg_total, label='part of a \n protocluster', alpha=0.8, color=colors[3], hatch='///') 
 
-    ax.bar(bins, agg[5] / agg_total, width=width, bottom= np.sum(agg[1:5],axis=0) / agg_total,
-           label='protocluster \n + field', alpha=0.6, color=colors[2])
+    ax.bar(bins, agg['pfield_lomass'] / agg_total, width=width, bottom= np.sum([agg[key] for key in labels[0:4]],axis=0) / agg_total, label='protocluster \n + field', alpha=0.6, color=colors[2])
     
-    ax.bar(bins, agg[6] / agg_total, width=width, bottom= np.sum(agg[1:6],axis=0) / agg_total,
-           label='protocluster \n + field', alpha=0.8, color=colors[2], hatch='///')
+    ax.bar(bins, agg['pfield_himass'] / agg_total, width=width, bottom= np.sum([agg[key] for key in labels[0:5]],axis=0) / agg_total, label='protocluster \n + field', alpha=0.8, color=colors[2], hatch='///')
 
-    ax.bar(bins, agg[0] / agg_total, width=width, 
-           bottom= np.sum(agg[1:],axis=0) / agg_total, color=colors[0], 
+    ax.bar(bins, agg['field'] / agg_total, width=width, 
+           bottom= np.sum([agg[key] for key in labels[0:6]],axis=0) / agg_total, color=colors[0], 
            label='field', alpha=0.2)
     
     ax.set_xlim(binLimits[0], binLimits[-1])
