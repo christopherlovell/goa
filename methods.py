@@ -13,7 +13,7 @@ from norm_cood import norm_coods  # cythonised normalisation function
 
 
 
-def overdensity_cylinder(gals, coods, R, dc, L, pc_stats=False, cluster_mass_lim=1.48e4, n=100, verbose=False):
+def overdensity_cylinder(gals, coods, R, dc, L, pc_stats=False, cluster_mass_lim=1e4, n=100, verbose=False):
     """
     Find overdensity statistics over the whole simulation box for cylindrical apertures.
 
@@ -191,7 +191,7 @@ def r2(ydata, ypred):
     return 1 - (ss_res / ss_tot)
 
 
-def get_protoclusters(gals, L, cluster_lim=1.48e4):
+def get_protoclusters(gals, L, cluster_lim=1e4):
     
     clusters = gals[gals['z0_central_mcrit200'] > cluster_lim].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
 
@@ -238,7 +238,10 @@ def z_distort(gals, z, L):
 
 def factor_h(gals, h):
 
-    gals[['z0_central_mcrit200','zn_x','zn_y','zn_z']] /= h
+    gals[['z0_central_mcrit200','zn_x','zn_y','zn_z','z0_x','z0_y','z0_z',
+          'z0_mcrit200','z0_central_rcrit200','z0_central_x', 'z0_central_y', 
+          'z0_central_z', 'zn_stellarMass','zn_blackHoleMass',
+          'zn_centralMvir','zn_mvir','zn_rvir',]] /= h
 
     return gals
 
@@ -451,15 +454,15 @@ def plotit(ax, stats, axb=None, clim = 0.5, plim = 0.5, N = 12, mlim=5e4, noplot
     plt.rcParams['hatch.color'] = 'black'
     plt.rcParams['hatch.linewidth'] = 0.5
     
-    ax.bar(bins, agg['proto_lomass'] / agg_total, width=width, label='protocluster ($M<M_{lim}$)', alpha=0.6, color=colors[1])
+    ax.bar(bins, agg['proto_lomass'] / agg_total, width=width, label='protocluster ($M<M_{lim}$)', alpha=0.8, color=colors[1])
     
     bar = ax.bar(bins, agg['proto_himass'] / agg_total, width=width, bottom=agg[labels[0]] / agg_total, label='protocluster ($M>M_{lim}$)', alpha=0.8, color=colors[1], hatch='///')
                  
-    ax.bar(bins, agg['part_lomass'] / agg_total, width=width, bottom=np.sum([agg[key] for key in labels[0:2]],axis=0) / agg_total, label='part of a \n protocluster', alpha=0.6, color=colors[3]) 
+    ax.bar(bins, agg['part_lomass'] / agg_total, width=width, bottom=np.sum([agg[key] for key in labels[0:2]],axis=0) / agg_total, label='part of a \n protocluster', alpha=0.8, color=colors[3]) 
     
     ax.bar(bins, agg['part_himass'] / agg_total, width=width, bottom=np.sum([agg[key] for key in labels[0:3]],axis=0) / agg_total, label='part of a \n protocluster', alpha=0.8, color=colors[3], hatch='///') 
 
-    ax.bar(bins, agg['pfield_lomass'] / agg_total, width=width, bottom= np.sum([agg[key] for key in labels[0:4]],axis=0) / agg_total, label='protocluster \n + field', alpha=0.6, color=colors[2])
+    ax.bar(bins, agg['pfield_lomass'] / agg_total, width=width, bottom= np.sum([agg[key] for key in labels[0:4]],axis=0) / agg_total, label='protocluster \n + field', alpha=0.8, color=colors[2])
     
     ax.bar(bins, agg['pfield_himass'] / agg_total, width=width, bottom= np.sum([agg[key] for key in labels[0:5]],axis=0) / agg_total, label='protocluster \n + field', alpha=0.8, color=colors[2], hatch='///')
 
