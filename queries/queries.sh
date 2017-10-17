@@ -4,38 +4,43 @@ out_dir=/lustre/scratch/astro/cl478/protoclusters_data/
 username=$1
 password=$2
 
+# stellarMass
 selection=(
-stellarMass
 sfr
 )
 
+# 0.0673
 selectionValue=(
-0.0673
 1
 )
 
+# 11
+# 12
+# 13
+# 15
+# 17
+# 19
+# 22
+# 25
+# 30
 snapnum=(
-11
-12
-13
-15
-17
-19
-22
-25
-30
+29
+28
 )
 
+
+# 9p72
+# 8p93
+# 8p22
+# 6p97
+# 5p92
+# 5p03
+# 3p95
+# 3p10
+# 2p07
 z=(
-9p72
-8p93
-8p22
-6p97
-5p92
-5p03
-3p95
-3p10
-2p07
+2p25
+2p44
 )
 
 echo "starting download..."

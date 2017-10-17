@@ -19,14 +19,20 @@ def overdensity_cylinder(gals, coods, R, dc, L, pc_stats=False, cluster_mass_lim
 
     Args:
         gals - dataframe of galaxy properties
-        random - bool, whether to use random positions or center on all galaxies
+        coods - coordinates to calculate statistcis at. Typically defined as galaxy or random coordinates.
         R - aperture radius, cMpc
         dc - half aperture depth, cMpc
+        L - box length, cMpc
+        pc_stats - bool, calculate completeness and purity of each region
         cluster_mass_lim - limiting descendant mass above which to classify clusters, z0_central_mcrit200
         n - chunk length
-        N - number of random regions
+        
     Returns:
-        out_stats - output statistics, numpy array of shape [len(coods), 4], where coods is either the number of galaxies or number of random regions.
+        out_stats - output statistics, numpy array of shape [len(coods), 4]
+                    0 - overdensity
+                    1 - completeness
+                    2 - purity
+                    3 - descendant mass
     """
 
     dimensions = np.array([L, L, L])
@@ -192,14 +198,21 @@ def r2(ydata, ypred):
 
 
 def get_protoclusters(gals, L, cluster_lim=1e4):
+    """
+    Find protoclusters in a dataframe of galaxy properties.
+    
+    Args:
+    gals - dataframe of galaxy properties
+    L - box length, cMpc
+    cluster_lim - cluster mass definition
+    
+    Returns:
+    dict, coordinates of each protoclusters ('coods') and mass/ central Id of each protocluster ('clusters')
+    """
     
     clusters = gals[gals['z0_central_mcrit200'] > cluster_lim].groupby('z0_centralId')['z0_central_mcrit200','z0_centralId'].max()
 
     coods = np.zeros(len(clusters))
-    
-#    for i, cid in enumerate(clusters['z0_centralId']):
-#        gal_coods = norm_coods(np.array(gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']]), L)
-#         coods[i] = np.mean(gal_coods, axis=0)  # find protocluster center
 
     coods = np.array([np.mean(normalise_coods(np.array(gals[gals['z0_centralId'] == cid][['zn_x','zn_y','zn_z']]), L), axis=0) for cid in clusters['z0_centralId']])
     
@@ -216,10 +229,7 @@ def normalise_coods(coods, L):
         
         if np.abs(coods[:,dim].max() - coods[:,dim].min()) > L/2:
             coods[:,dim] = coods[:,dim] - L
-            coods[coods[:,dim] < -L/2,dim] += L #original_coods[coods[:,dim] < -L/2, dim]
-
-    # center = np.median(coods, axis=0)
-    # coods = coods - center
+            coods[coods[:,dim] < -L/2,dim] += L 
     
     return coods
 
@@ -264,8 +274,6 @@ def bhattacharyya(histA, histB):
         BC += np.sqrt( histA[i] * histB[i] );
 
     distance = -np.log(BC)
-    #angle = math.acos(BC)
-    #score = np.sqrt(1 - (1 / np.sqrt(histA.mean() * histB.mean() * len(histA)**2)) * BC)
 
     return distance, BC
 
@@ -285,7 +293,6 @@ def distance(x0, x1, dimensions):
     delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
 
     return [np.linalg.norm(delta, axis=-1)]
-    #return [np.sqrt((delta ** 2).sum(axis=-1))]
 
 
 def z0_halo_properties(pcs, pcmems, gals):
@@ -357,8 +364,6 @@ def binit(stats, labs, labels, N = 12, minimum = 1):
     
     agg = {x: np.histogram(dgal[labs==x], binLimits)[0] for x in labels}  # save counts for each label
     agg_total = np.sum([v for k,v in agg.iteritems()],axis=0)   # find total in each bin
-    
-    # while np.sum(agg_total == 0) > 0:
 
     bins, binLimits, agg_total = merge_bins(bins, binLimits, agg_total, minimum=minimum)  # merge empty bins
         
@@ -428,7 +433,6 @@ def plotit(ax, stats, axb=None, clim = 0.5, plim = 0.5, N = 12, mlim=5e4, noplot
     
     dgal = stats[:,0] + 1
 
-    # labels = ['proto_lomass','proto_himass','part_lomass','part_himass','pfield_lomass','pfield_himass','field']
     labs, labels = label(stats, clim, plim, mlim)
     
     bins, binLimits, agg, agg_total, fracs = binit(stats, labs, labels, N = N, minimum=minimum)
