@@ -1,6 +1,7 @@
 # Galaxy Overdensity Analysis (GOA)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.50664.svg)](https://doi.org/10.5281/zenodo.50664)
+[![arXiv](https://img.shields.io/badge/arXiv-1710.02148-red.svg)](https://arxiv.org/abs/1710.02148)
 
 Compute statistics of the galaxy protocluster population from cosmological simulations.
 
@@ -17,14 +18,3 @@ You can then run the bash scripts in the `queries/` folder.
 To compile the `norm_coods` cythonised module:
 
     python setup.py build_ext --inplace
-
-
-## Selection
-
-We use four different galaxy selections in the paper:
-
-- $\mathrm{S_{SFR1}}$
-- $\mathrm{S_{SFR5}}$
-- $\mathrm{S_{MAS9}}$
-- $\mathrm{S_{MAS10}}$
-
