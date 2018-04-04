@@ -1,8 +1,7 @@
 # Galaxy Overdensity Analysis (GOA)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.50664.svg)](https://doi.org/10.5281/zenodo.50664)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1092728.svg)](https://doi.org/10.5281/zenodo.1092728)
 [![arXiv](https://img.shields.io/badge/arXiv-1710.02148-red.svg)](https://arxiv.org/abs/1710.02148)
-[![vanity](https://img.shields.io/badge/vanity-1710.02148-orange.svg)](https://www.arxiv-vanity.com/papers/1710.02148/)
 
 Compute statistics of the galaxy protocluster population from cosmological simulations.
 
