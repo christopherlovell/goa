@@ -5,6 +5,24 @@
 
 Compute statistics of the galaxy protocluster population from cosmological simulations.
 
+If you use this software, please cite the following paper:
+
+    @ARTICLE{2018MNRAS.474.4612L,
+       author = {{Lovell}, C.~C. and {Thomas}, P.~A. and {Wilkins}, S.~M.},
+       title = "{Characterising and identifying galaxy protoclusters}",
+       journal = {\mnras},
+       archivePrefix = "arXiv",
+       eprint = {1710.02148},
+       keywords = {galaxies: clusters: general, galaxies: high-redshift, galaxies: statistics},
+       year = 2018,
+       month = mar,
+       volume = 474,
+       pages = {4612-4628},
+       doi = {10.1093/mnras/stx3090},
+       adsurl = {http://adsabs.harvard.edu/abs/2018MNRAS.474.4612L},
+       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
 ## Instructions
 
 To download all data used in the analysis you must have access to the [German Astronomical Virtual Observatory](http://www.g-vo.org/), Millennium [database](http://gavo.mpa-garching.mpg.de/MyMillennium/).
