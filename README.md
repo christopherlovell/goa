@@ -5,22 +5,21 @@
 
 Compute statistics of the galaxy protocluster population from cosmological simulations.
 
-If you use this software, please cite the following paper:
+If you use this software, please use the following BibTex citation:
 
-    @ARTICLE{2018MNRAS.474.4612L,
-       author = {{Lovell}, C.~C. and {Thomas}, P.~A. and {Wilkins}, S.~M.},
-       title = "{Characterising and identifying galaxy protoclusters}",
-       journal = {\mnras},
-       archivePrefix = "arXiv",
-       eprint = {1710.02148},
-       keywords = {galaxies: clusters: general, galaxies: high-redshift, galaxies: statistics},
-       year = 2018,
-       month = mar,
-       volume = 474,
-       pages = {4612-4628},
-       doi = {10.1093/mnras/stx3090},
-       adsurl = {http://adsabs.harvard.edu/abs/2018MNRAS.474.4612L},
-       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    @article{10.1093/mnras/stx3090,
+    author = {Lovell, Christopher C and Thomas, Peter A and Wilkins, Stephen M},
+    title = "{Characterising and identifying galaxy protoclusters}",
+    journal = {Monthly Notices of the Royal Astronomical Society},
+    volume = {474},
+    number = {4},
+    pages = {4612-4628},
+    year = {2017},
+    month = {12},
+    issn = {0035-8711},
+    doi = {10.1093/mnras/stx3090},
+    url = {https://doi.org/10.1093/mnras/stx3090},
+    eprint = {http://oup.prod.sis.lan/mnras/article-pdf/474/4/4612/23011916/stx3090.pdf},
     }
 
 ## Instructions
